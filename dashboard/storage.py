@@ -47,7 +47,12 @@ def init_db():
           id INTEGER PRIMARY KEY AUTOINCREMENT, time TEXT NOT NULL, kind TEXT NOT NULL,
           subject TEXT NOT NULL, detail TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
+        );
         """)
+        if "scan_interval" not in {r["name"] for r in c.execute("PRAGMA table_info(agents)")}:
+            c.execute("ALTER TABLE agents ADD COLUMN scan_interval INTEGER NOT NULL DEFAULT 120")
 
 
 def event(kind: str, subject: str, detail: str):
@@ -60,7 +65,7 @@ def new_agent(label: str):
     sid = secrets.token_hex(12)
     token = secrets.token_urlsafe(40)
     with db() as c:
-        c.execute("INSERT INTO agents VALUES(?,?,?,?,NULL)",
+        c.execute("INSERT INTO agents(id,label,token_hash,created_at,last_seen) VALUES(?,?,?,?,NULL)",
                   (sid, label, hashlib.sha256(token.encode()).hexdigest(), utcnow()))
     event("agent-created", sid, label)
     return {"id": sid, "label": label, "token": token}
@@ -74,7 +79,7 @@ def agent_info(sid: str):
 
 def all_agents():
     with db() as c:
-        return [dict(r) for r in c.execute("SELECT id,label,created_at,last_seen FROM agents ORDER BY label")]
+        return [dict(r) for r in c.execute("SELECT id,label,created_at,last_seen,scan_interval FROM agents ORDER BY label")]
 
 
 def save_report(sid: str, payload: dict):
