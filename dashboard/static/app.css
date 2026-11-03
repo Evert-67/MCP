@@ -30,3 +30,20 @@
 .danger-outline:hover{background:#482635}
 #settings{scroll-margin-top:25px}
 @media(max-width:800px){.settings-grid{grid-template-columns:1fr}}
+
+
+/* v0.6 — controlled AI diagnostic handoff */
+#diagnose{scroll-margin-top:24px}
+.diagnosis-panel{padding:22px}
+.diagnosis-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr);gap:26px;align-items:start}
+.diagnosis-grid>div{min-width:0}
+.diagnosis-subhead{font-size:13px;font-weight:700;color:var(--text);margin:22px 0 10px}
+.diagnosis-label{display:block;font-size:12px;font-weight:700;margin-bottom:9px}
+.diagnosis-output{display:block;white-space:pre-wrap;overflow:auto;max-height:340px;min-height:185px;word-break:break-word;padding:15px;background:var(--bg);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:12px;line-height:1.65}
+.diagnosis-actions{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.diagnosis-actions button:disabled,#diagnose-make:disabled{opacity:.48;cursor:not-allowed}
+.diagnosis-checks{margin:8px 0 14px;padding-left:20px;color:var(--muted);font-size:12px;line-height:1.75}
+.diagnosis-checks li+li{margin-top:5px}
+.diagnosis-feedback{min-height:20px;color:var(--green);font-size:12px;margin:8px 0}
+.diagnosis-feedback[data-error=true]{color:var(--red)}
+@media(max-width:900px){.diagnosis-grid{grid-template-columns:1fr}.diagnosis-panel{padding:16px}}

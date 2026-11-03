@@ -13,10 +13,11 @@
     <a class="nav-link-custom active" href="#overview"><i class="bi bi-grid-1x2"></i> Overzicht</a>
     <a class="nav-link-custom" href="#services"><i class="bi bi-boxes"></i> Diensten <span class="nav-count" id="nav-count">—</span></a>
     <a class="nav-link-custom" href="#servers"><i class="bi bi-hdd-stack"></i> Servers</a>
+    <a class="nav-link-custom" href="#diagnose"><i class="bi bi-robot"></i> AI &amp; Diagnose</a>
     <a class="nav-link-custom" href="#risk"><i class="bi bi-shield-check"></i> Risicobeleid</a>
     <a class="nav-link-custom" href="#activity"><i class="bi bi-clock-history"></i> Activiteit</a>
     <a class="nav-link-custom" href="#settings"><i class="bi bi-sliders"></i> Instellingen</a>
-    <div class="sidebar-bottom"><div class="connection-dot"></div><div><strong>Dashboard actief</strong><small>v0.5 • Beheermodus veilig</small></div></div>
+    <div class="sidebar-bottom"><div class="connection-dot"></div><div><strong>Dashboard actief</strong><small>v0.6-dev • Diagnosemodus veilig</small></div></div>
   </aside>
   <main class="main" id="overview">
     <header class="topbar"><button class="btn d-md-none menu-btn" id="menu"><i class="bi bi-list"></i></button><div class="crumb">Infrastructuur <i class="bi bi-chevron-right"></i> <span>Overzicht</span></div><div class="top-actions"><label for="language" class="visually-hidden">Language / Taal</label><select id="language" class="filter-select" title="Language / Taal" aria-label="Language / Taal"><option value="nl">Nederlands</option><option value="en">English</option></select><span class="top-secure"><i class="bi bi-lock-fill"></i> Beveiligde sessie</span><button class="icon-btn" id="refresh" title="Vernieuwen"><i class="bi bi-arrow-clockwise"></i></button><div class="avatar">CP</div></div></header>
@@ -28,6 +29,33 @@
       <div class="server-grid" id="server-list"><div class="loading">Servergegevens laden...</div></div>
       <div class="section-head" id="services"><div><h2>Dienstenoverzicht</h2><p>Doorzoek en beheer risico-instellingen per container</p></div><span class="small-muted">Inventarisatie zonder Docker-socket in het dashboard</span></div>
       <div class="panel"><div class="filterbar"><div class="search"><i class="bi bi-search"></i><input id="search" placeholder="Zoek container, image of project..." autocomplete="off"></div><select id="filter-server" class="filter-select"><option value="">Alle servers</option></select><select id="filter-status" class="filter-select"><option value="">Alle statussen</option><option value="running">Actief</option><option value="stopped">Gestopt</option></select><select id="filter-risk" class="filter-select"><option value="">Alle risico's</option><option value="low">Laag</option><option value="medium">Middel</option><option value="high">Hoog</option><option value="critical">Kritiek</option></select></div><div class="table-responsive"><table class="services-table"><thead><tr><th>DIENST</th><th>SERVER</th><th>STATUS</th><th>RISICO</th><th>UPDATEBELEID</th><th></th></tr></thead><tbody id="service-rows"><tr><td colspan="6" class="loading">Containers laden...</td></tr></tbody></table></div><div class="table-foot"><span id="results-count">— resultaten</span><span>Klik op een dienst om het beleid in te stellen</span></div></div>
+      <div class="section-head" id="diagnose"><div><h2>AI &amp; Diagnose</h2><p>Onderzoek problemen met ChatGPT, zonder automatisch gegevens te verzenden</p></div><span class="small-muted"><i class="bi bi-shield-lock"></i> Alleen lezen · uitvoering uitgeschakeld</span></div>
+      <section class="panel diagnosis-panel" aria-label="AI &amp; Diagnose">
+        <div class="diagnosis-grid">
+          <div>
+            <div class="form-row">
+              <label for="diagnose-service">Kies een dienst</label>
+              <select class="form-field" id="diagnose-service" disabled><option>Inventarisatie laden...</option></select>
+            </div>
+            <button type="button" class="primary-btn" id="diagnose-make" disabled><i class="bi bi-search"></i> Diagnose maken</button>
+            <h3 class="diagnosis-subhead">Samenvatting</h3>
+            <p class="helper" id="diagnose-summary">Er is nog geen diagnose gemaakt.</p>
+            <h3 class="diagnosis-subhead">Aanbevolen controles</h3>
+            <ul class="diagnosis-checks" id="diagnose-checks"></ul>
+          </div>
+          <div>
+            <label class="diagnosis-label" for="diagnose-output">Controleer wat je met ChatGPT deelt</label>
+            <pre id="diagnose-output" class="diagnosis-output" tabindex="0">Selecteer een dienst en klik op Diagnose maken.</pre>
+            <label class="settings-switch"><input type="checkbox" id="diagnose-consent" disabled> Ik heb de gegevens bekeken en wil ze zelf met ChatGPT delen.</label>
+            <div class="diagnosis-actions">
+              <button class="primary-btn" type="button" id="diagnose-copy" disabled><i class="bi bi-clipboard"></i> Kopieer rapport</button>
+              <button class="secondary-btn" type="button" id="diagnose-open-chatgpt" disabled><i class="bi bi-box-arrow-up-right"></i> Open ChatGPT</button>
+            </div>
+            <p class="diagnosis-feedback" id="diagnose-feedback" role="status" aria-live="polite"></p>
+            <div class="panel-note"><i class="bi bi-info-circle"></i> Dit is nog geen ingebouwde AI-chat. De inventaris wordt alleen gelezen; logs en back-ups zijn niet gecontroleerd. Er wordt niets automatisch naar ChatGPT verstuurd en geen herstelactie uitgevoerd.</div>
+          </div>
+        </div>
+      </section>
       <div class="two-col"><section class="panel side-panel" id="risk"><div class="panel-title"><div><h2>Risicolagen</h2><p>Een beleid dat rekening houdt met impact</p></div><i class="bi bi-shield-check section-icon"></i></div><div class="risk-item"><span class="risk-dot low"></span><div><strong>Laag risico</strong><small>Controleer, back-up en beperkte auto-updates na vrijgave</small></div><span class="risk-code">L1</span></div><div class="risk-item"><span class="risk-dot medium"></span><div><strong>Middel</strong><small>Update pas na beoordeling en goedkeuring</small></div><span class="risk-code">L2</span></div><div class="risk-item"><span class="risk-dot high"></span><div><strong>Hoog</strong><small>Kritieke functies, extra back-up en handmatige uitvoering</small></div><span class="risk-code">L3</span></div><div class="risk-item"><span class="risk-dot critical"></span><div><strong>Kritiek</strong><small>Databases en kerninfrastructuur: niet automatisch</small></div><span class="risk-code">L4</span></div><div class="panel-note"><i class="bi bi-info-circle"></i> Het automatische minimumrisico kun je verhogen, maar niet verlagen.</div></section><section class="panel side-panel" id="activity"><div class="panel-title"><div><h2>Activiteitenlog</h2><p>Laatste configuratiewijzigingen</p></div><i class="bi bi-clock-history section-icon"></i></div><div id="events" class="events"><div class="loading">Activiteit laden...</div></div></section></div>
 
       <div class="section-head" id="settings"><div><h2>Instellingen</h2><p>Beheer de webinterface en aangesloten servers op één plek</p></div><span class="small-muted"><i class="bi bi-shield-lock"></i> Updates blijven geblokkeerd</span></div>
@@ -58,12 +86,13 @@
           <div class="panel-note"><i class="bi bi-info-circle"></i> Het scaninterval wordt automatisch toegepast bij agents die met <code>scan.py --loop</code> draaien. Bestaande cronjobs blijven hun eigen schema volgen.</div>
         </section>
       </div>
-      <footer>CodePug Server Control <span>v0.5.0</span> · Every server needs a good boi. 🐶</footer>
+      <footer>CodePug Server Control <span>v0.6.0-dev</span> · Every server needs a good boi. 🐶</footer>
     </div>
   </main>
 </div>
 <div class="overlay" id="overlay" hidden><div class="modal-shell"><div class="modal-head"><div><div class="eyebrow">CODEPUG CONTROL CENTER</div><h2 id="modal-title">Instellingen</h2></div><button id="close-modal" class="icon-btn"><i class="bi bi-x-lg"></i></button></div><div id="modal-content"></div></div></div>
 <div id="toast" class="toast-custom" hidden></div>
 <script src="/static/i18n.js"></script>
+<script src="/static/diagnose.js"></script>
 <script src="/static/app.js"></script>
 </body></html>

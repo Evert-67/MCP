@@ -8,12 +8,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .diagnostics import build_diagnosis
 from .risk import LEVELS, classify, effective_risk, permitted_mode
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
                       new_agent, put_policy, recent_events, save_report,
@@ -164,7 +165,7 @@ def build_state():
             s["age_seconds"] = None
         s["online"] = s["age_seconds"] is not None and s["age_seconds"] < settings["offline_after_seconds"]
         s["container_count"] = sum(1 for a in out if a["server_id"] == s["id"])
-    return {"version":"0.5.0", "servers":servers, "services":out,
+    return {"version":"0.6.0-dev", "servers":servers, "services":out,
             "settings":settings, "agents":agents,
             "events":recent_events(20), "execution_enabled":False,
             "note":"Updatebeleid wordt opgeslagen; deze versie voert geen updates uit."}
@@ -185,6 +186,24 @@ def home(_: Annotated[None, Depends(require_admin)]):
 @app.get("/api/state")
 def api_state(_: Annotated[None, Depends(require_admin)]):
     return build_state()
+
+
+@app.get("/api/diagnostics")
+def api_diagnostics(service_key: str = Query(min_length=3, max_length=240),
+                    _: Annotated[None, Depends(require_admin)] = None):
+    """Read-only evidence summary for a selected visible service.
+
+    No logs or secrets, and never any remote action. A user must approve
+    copying the resulting summary into a separate ChatGPT conversation.
+    """
+    state = build_state()
+    item = next((s for s in state["services"] if s["key"] == service_key), None)
+    if item is None:
+        raise HTTPException(404, "Dienst niet gevonden")
+    host = next((h for h in state["servers"] if h["id"] == item["server_id"]), None)
+    if host is None:
+        raise HTTPException(404, "Host niet gevonden")
+    return build_diagnosis(item, host)
 
 
 @app.post("/api/policies")
