@@ -117,5 +117,10 @@
   "Toegang tot Docker-socket": "Access to Docker socket",
   "Belangrijke infrastructuurdienst": "Important infrastructure service",
   "Database of gevoelig opslagonderdeel": "Database or sensitive storage component",
-  "Container is gestopt": "Container is stopped"
+  "Container is gestopt": "Container is stopped",
+  "{count} online": "{count} online",
+  "{count} actief": "{count} running",
+  "{count} gestopt": "{count} stopped",
+  "{count} resultaten": "{count} results",
+  "Laatste meting {seconds}s geleden": "Last reading {seconds}s ago"
 }
