@@ -7,6 +7,7 @@ No environment variables, labels values, secret files or container logs are sent
 """
 import json
 import os
+import platform
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -48,10 +49,17 @@ def scan():
         memory = {"total_bytes":vals.get('MemTotal',0),"available_bytes":vals.get('MemAvailable',0)}
     except (OSError, ValueError):
         pass
-    disk = os.statvfs('/')
-    return {"collected_at":datetime.now(timezone.utc).isoformat(),"containers":records,
-            "memory":memory,"disk_root":{"total_bytes":disk.f_blocks*disk.f_frsize,
-                                            "available_bytes":disk.f_bavail*disk.f_frsize}}
+    try:
+        disk = os.statvfs('/')
+        disk_root = {"total_bytes":disk.f_blocks*disk.f_frsize,
+                     "available_bytes":disk.f_bavail*disk.f_frsize}
+    except (AttributeError, OSError):
+        # Windows Docker hosts do not provide POSIX statvfs.
+        disk_root = {}
+    return {"collected_at":datetime.now(timezone.utc).isoformat(),
+            "platform":platform.system().lower(),
+            "capabilities":["docker-inventory"], "containers":records,
+            "memory":memory, "disk_root":disk_root}
 
 
 def main():
