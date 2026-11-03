@@ -4,15 +4,20 @@ No Docker API, logs, passwords, notes or environment variables are accessed here
 A human must explicitly choose to copy the report to a separate AI conversation.
 """
 from __future__ import annotations
+import re
+
+def one_line(value, limit: int) -> str:
+    """Do not allow a host-provided label to smuggle extra report instructions."""
+    return re.sub(r"[\\x00-\\x1f\\x7f]+", " ", str(value))[:limit]
 
 
 def build_diagnosis(service: dict, host: dict) -> dict:
     """Build a bounded incident snapshot from the existing sanitized inventory."""
-    name = str(service.get("name", ""))[:120]
-    host_name = str(host.get("label", ""))[:80]
-    status = str(service.get("status", "unknown"))[:140]
-    state = str(service.get("state", "unknown"))[:50]
-    risk = str(service.get("risk", "unknown"))[:20]
+    name = one_line(service.get("name", ""), 120)
+    host_name = one_line(host.get("label", ""), 80)
+    status = one_line(service.get("status", "unknown"), 140)
+    state = one_line(service.get("state", "unknown"), 50)
+    risk = one_line(service.get("risk", "unknown"), 20)
     online = bool(host.get("online"))
     age = host.get("age_seconds")
     unhealthy = "unhealthy" in status.lower()
