@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field
 
 from .risk import LEVELS, classify, effective_risk, permitted_mode
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
-                      new_agent, put_policy, recent_events, save_report)
+                      new_agent, put_policy, recent_events, save_report,
+                      get_settings, put_settings, update_agent, delete_agent)
 
 ROOT = Path(__file__).resolve().parent
 HOST_SNAPSHOT = Path(os.getenv("HOST_SNAPSHOT", "/host-snapshot/status.json"))
@@ -66,6 +67,18 @@ class AgentIn(BaseModel):
     label: str = Field(min_length=2, max_length=80)
 
 
+class AgentSettingsIn(BaseModel):
+    label: str = Field(min_length=2, max_length=80)
+    scan_interval: int = Field(ge=60, le=3600)
+
+
+class DashboardSettingsIn(BaseModel):
+    refresh_seconds: int = Field(ge=15, le=300)
+    offline_after_seconds: int = Field(ge=120, le=7200)
+    alerts_enabled: bool
+    notify_unhealthy: bool
+
+
 def clean_containers(raw):
     if not isinstance(raw, list):
         return []
@@ -103,6 +116,7 @@ def parse_timestamp(value):
 
 def build_state():
     agents = all_agents()
+    settings = get_settings()
     reports = all_reports()
     policies = all_policies()
     servers, services = [], []
@@ -148,9 +162,10 @@ def build_state():
             s["age_seconds"] = max(0, int((now-d).total_seconds()))
         except ValueError:
             s["age_seconds"] = None
-        s["online"] = s["age_seconds"] is not None and s["age_seconds"] < 180
+        s["online"] = s["age_seconds"] is not None and s["age_seconds"] < settings["offline_after_seconds"]
         s["container_count"] = sum(1 for a in out if a["server_id"] == s["id"])
     return {"version":"0.5.0", "servers":servers, "services":out,
+            "settings":settings, "agents":agents,
             "events":recent_events(20), "execution_enabled":False,
             "note":"Updatebeleid wordt opgeslagen; deze versie voert geen updates uit."}
 
