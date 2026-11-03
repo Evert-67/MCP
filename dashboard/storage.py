@@ -111,3 +111,57 @@ def put_policy(key: str, risk: str | None, mode: str, notes: str):
 def recent_events(limit=25):
     with db() as c:
         return [dict(r) for r in c.execute("SELECT time,kind,subject,detail FROM events ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+# Presentation and monitoring preferences; never an update-execution grant.
+DEFAULT_SETTINGS = {
+    "refresh_seconds": 60,
+    "offline_after_seconds": 300,
+    "alerts_enabled": True,
+    "notify_unhealthy": True,
+}
+
+
+def get_settings():
+    out = DEFAULT_SETTINGS.copy()
+    with db() as c:
+        for row in c.execute("SELECT key,value FROM settings"):
+            if row["key"] in out:
+                try:
+                    out[row["key"]] = json.loads(row["value"])
+                except (ValueError, TypeError):
+                    pass
+    return out
+
+
+def put_settings(values: dict):
+    with db() as c:
+        for key in DEFAULT_SETTINGS:
+            if key in values:
+                c.execute(
+                    "INSERT INTO settings(key,value,updated_at) VALUES(?,?,?) "
+                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",
+                    (key, json.dumps(values[key]), utcnow()))
+    event("settings-edited", "dashboard", "Monitoring preferences changed")
+
+
+def update_agent(sid: str, label: str, scan_interval: int) -> bool:
+    with db() as c:
+        changed = c.execute(
+            "UPDATE agents SET label=?,scan_interval=? WHERE id=?",
+            (label, scan_interval, sid)).rowcount
+    if changed:
+        event("agent-updated", sid, f"Agent cadence: {scan_interval}s")
+    return bool(changed)
+
+
+def delete_agent(sid: str) -> bool:
+    with db() as c:
+        found = c.execute("DELETE FROM agents WHERE id=?", (sid,)).rowcount
+        if found:
+            c.execute("DELETE FROM reports WHERE agent_id=?", (sid,))
+            c.execute("DELETE FROM policies WHERE substr(service_key,1,?)=?",
+                      (len(sid) + 1, sid + "/"))
+    if found:
+        event("agent-revoked", sid, "Token revoked; report and policies deleted")
+    return bool(found)
