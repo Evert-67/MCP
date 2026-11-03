@@ -1,0 +1,28 @@
+name: CodePug quality checks
+on:
+  push:
+    branches: ["main", "feature/**"]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt httpx
+      - name: Python syntax
+        run: python -m compileall -q dashboard agent tests
+      - name: JavaScript syntax
+        run: |
+          node --check dashboard/static/i18n.js
+          node --check dashboard/static/app.js
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v

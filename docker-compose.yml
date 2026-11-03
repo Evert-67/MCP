@@ -1,0 +1,31 @@
+name: codepug-control
+services:
+  dashboard:
+    build: .
+    image: codepug-control:v0.5.0
+    container_name: codepug-control
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${BIND_IP:-127.0.0.1}:8768:8768"
+    env_file:
+      - .env
+    environment:
+      - CODEPUG_DB=/appdata/codepug.db
+      - HOST_SNAPSHOT=/host-snapshot/status.json
+    volumes:
+      - ./appdata:/appdata:rw
+      - ${HOST_SNAPSHOT_DIR:-./host-data}:/host-snapshot:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8768/healthz',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
