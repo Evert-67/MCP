@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="nl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1220"><title>CodePug Server Control</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+<link href="/static/app.css" rel="stylesheet">
+</head><body>
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-logo"><i class="bi bi-hdd-network"></i></div><div><strong>CodePug<span class="brand-accent">.</span></strong><small>SERVER CONTROL</small></div></div>
+    <div class="section-label">WERKOMGEVING</div>
+    <a class="nav-link-custom active" href="#overview"><i class="bi bi-grid-1x2"></i> Overzicht</a>
+    <a class="nav-link-custom" href="#services"><i class="bi bi-boxes"></i> Diensten <span class="nav-count" id="nav-count">—</span></a>
+    <a class="nav-link-custom" href="#servers"><i class="bi bi-hdd-stack"></i> Servers</a>
+    <a class="nav-link-custom" href="#risk"><i class="bi bi-shield-check"></i> Risicobeleid</a>
+    <a class="nav-link-custom" href="#activity"><i class="bi bi-clock-history"></i> Activiteit</a>
+    <div class="sidebar-bottom"><div class="connection-dot"></div><div><strong>MCP verbonden</strong><small>v0.5 • Beheermodus veilig</small></div></div>
+  </aside>
+  <main class="main" id="overview">
+    <header class="topbar"><button class="btn d-md-none menu-btn" id="menu"><i class="bi bi-list"></i></button><div class="crumb">Infrastructuur <i class="bi bi-chevron-right"></i> <span>Overzicht</span></div><div class="top-actions"><span class="top-secure"><i class="bi bi-lock-fill"></i> Beveiligde sessie</span><button class="icon-btn" id="refresh" title="Vernieuwen"><i class="bi bi-arrow-clockwise"></i></button><div class="avatar">CP</div></div></header>
+    <div class="content">
+      <div class="intro"><div><div class="eyebrow"><span class="pulse-dot"></span> INFRASTRUCTURE CONTROL CENTER</div><h1>Goedemorgen, beheerder <span>👋</span></h1><p>Je volledige serveromgeving, helder op één plek. Monitor, beoordeel en houd de controle.</p></div><div class="intro-actions"><span id="updated">Gegevens laden...</span><button class="primary-btn" id="add-server"><i class="bi bi-plus-lg"></i> Server toevoegen</button></div></div>
+      <div class="alert-ribbon"><i class="bi bi-shield-lock-fill"></i><div><strong>Veilige testmodus actief</strong><span>Risicoprofielen kun je beheren. Updates worden nog niet uitgevoerd totdat de uitvoeringsagent apart is vrijgegeven.</span></div><span class="ribbon-tag">UITVOERING UIT</span></div>
+      <section class="metrics"><article class="metric"><div class="metric-title">Gekoppelde servers <i class="bi bi-hdd-network"></i></div><div class="metric-number" id="m-servers">—</div><div class="metric-footer"><span class="positive" id="m-online">— online</span><span>in de omgeving</span></div></article><article class="metric"><div class="metric-title">Docker-containers <i class="bi bi-box-seam"></i></div><div class="metric-number" id="m-containers">—</div><div class="metric-footer"><span class="positive" id="m-running">— actief</span><span id="m-stopped">— gestopt</span></div></article><article class="metric"><div class="metric-title">Aandacht vereist <i class="bi bi-exclamation-triangle"></i></div><div class="metric-number warning" id="m-alerts">—</div><div class="metric-footer"><span>Gestopt of ongezond</span></div></article><article class="metric"><div class="metric-title">Automatische updates <i class="bi bi-arrow-repeat"></i></div><div class="metric-number">0</div><div class="metric-footer"><span class="neutral">Bewust geblokkeerd</span></div></article></section>
+      <div class="section-head" id="servers"><div><h2>Jouw servers</h2><p>Automatisch ontdekte en gekoppelde hosts</p></div><button class="text-btn" id="add-server-2"><i class="bi bi-plus-circle"></i> Server koppelen</button></div>
+      <div class="server-grid" id="server-list"><div class="loading">Servergegevens laden...</div></div>
+      <div class="section-head" id="services"><div><h2>Dienstenoverzicht</h2><p>Doorzoek en beheer risico-instellingen per container</p></div><span class="small-muted">Inventarisatie zonder Docker-socket in het dashboard</span></div>
+      <div class="panel"><div class="filterbar"><div class="search"><i class="bi bi-search"></i><input id="search" placeholder="Zoek container, image of project..." autocomplete="off"></div><select id="filter-server" class="filter-select"><option value="">Alle servers</option></select><select id="filter-status" class="filter-select"><option value="">Alle statussen</option><option value="running">Actief</option><option value="stopped">Gestopt</option></select><select id="filter-risk" class="filter-select"><option value="">Alle risico's</option><option value="low">Laag</option><option value="medium">Middel</option><option value="high">Hoog</option><option value="critical">Kritiek</option></select></div><div class="table-responsive"><table class="services-table"><thead><tr><th>DIENST</th><th>SERVER</th><th>STATUS</th><th>RISICO</th><th>UPDATEBELEID</th><th></th></tr></thead><tbody id="service-rows"><tr><td colspan="6" class="loading">Containers laden...</td></tr></tbody></table></div><div class="table-foot"><span id="results-count">— resultaten</span><span>Klik op een dienst om het beleid in te stellen</span></div></div>
+      <div class="two-col"><section class="panel side-panel" id="risk"><div class="panel-title"><div><h2>Risicolagen</h2><p>Een beleid dat rekening houdt met impact</p></div><i class="bi bi-shield-check section-icon"></i></div><div class="risk-item"><span class="risk-dot low"></span><div><strong>Laag risico</strong><small>Controleer, back-up en beperkte auto-updates na vrijgave</small></div><span class="risk-code">L1</span></div><div class="risk-item"><span class="risk-dot medium"></span><div><strong>Middel</strong><small>Update pas na beoordeling en goedkeuring</small></div><span class="risk-code">L2</span></div><div class="risk-item"><span class="risk-dot high"></span><div><strong>Hoog</strong><small>Kritieke functies, extra back-up en handmatige uitvoering</small></div><span class="risk-code">L3</span></div><div class="risk-item"><span class="risk-dot critical"></span><div><strong>Kritiek</strong><small>Databases en kerninfrastructuur: niet automatisch</small></div><span class="risk-code">L4</span></div><div class="panel-note"><i class="bi bi-info-circle"></i> Het automatische minimumrisico kun je verhogen, maar niet verlagen.</div></section><section class="panel side-panel" id="activity"><div class="panel-title"><div><h2>Activiteitenlog</h2><p>Laatste configuratiewijzigingen</p></div><i class="bi bi-clock-history section-icon"></i></div><div id="events" class="events"><div class="loading">Activiteit laden...</div></div></section></div>
+      <footer>CodePug Server Control <span>v0.5.0</span> · Every server needs a good boi. 🐶</footer>
+    </div>
+  </main>
+</div>
+<div class="overlay" id="overlay" hidden><div class="modal-shell"><div class="modal-head"><div><div class="eyebrow">CODEPUG CONTROL CENTER</div><h2 id="modal-title">Instellingen</h2></div><button id="close-modal" class="icon-btn"><i class="bi bi-x-lg"></i></button></div><div id="modal-content"></div></div></div>
+<div id="toast" class="toast-custom" hidden></div>
+<script src="/static/app.js"></script>
+</body></html>

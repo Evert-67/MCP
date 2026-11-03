@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+appdata/
+__pycache__/
+*.pyc
+*.log
+*.key
+*.db
+*.sqlite*
+secrets/
+local/
+*.zip
