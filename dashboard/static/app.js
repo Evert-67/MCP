@@ -30,6 +30,7 @@ try{
   model=await request('/api/state');
   reportNewAlerts(previous,model);
   render();
+  document.dispatchEvent(new CustomEvent('codepug-state-loaded',{detail:{servers:model.servers,services:model.services}}));
   scheduleReload();
 }catch(err){toast('Dashboard kon niet laden: '+err.message)}
 }
