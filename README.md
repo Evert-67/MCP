@@ -31,6 +31,37 @@ docker compose up -d --build
 
 De Compose bindt standaard uitsluitend op `127.0.0.1:8768`. Gebruik een SSH-forward of een TLS-beveiligde proxy. Wil je op het LAN rechtstreeks verbinden, zet `BIND_IP=192.168.1.20` in `.env` en beveilig de netwerktoegang. HTTP Basic mag **niet via onversleuteld internet** lopen.
 
+## Instellingen beheren in de webinterface
+
+De nieuwe pagina **Instellingen / Settings** bevat:
+- taalkeuze (Nederlands/Engels; per browser opgeslagen);
+- verversinterval van het dashboard (15–300 s);
+- grens wanneer een server als offline geldt (3–30 minuten);
+- waarschuwingen in het dashboard voor nieuwe offline-statussen en ongezonde containers;
+- serveragent-beheer: naam wijzigen, scaninterval aanpassen, toegang intrekken en inventaris verwijderen.
+
+De instellingen voor monitoring staan in de bestaande SQLite-database. Geen aanpassing van de Compose-configuratie nodig voor gewone dashboardvoorkeuren. **De webinterface voert geen Docker-, Ubuntu- of pakketupdates uit.**
+
+### Agent-scaninterval
+
+De oorspronkelijke scanner `python3 agent/scan.py` draait **één keer**: geschikt voor crontab of systemd timers. Die blijven hun eigen interval gebruiken. Om het scaninterval te laten volgen vanuit de webinterface, start de scanner op de gekoppelde server als doorlopend proces:
+
+```bash
+python3 agent/scan.py --loop
+```
+
+Gebruik daarvoor bij voorkeur een systemd-service met een apart, afgeschermd account. `--loop` vraagt het interval via een token-geauthenticeerd HTTPS-endpoint op en scant tussen 60 en 3600 seconden. Wanneer de hub onbereikbaar is, wacht hij 120 seconden en probeert hij opnieuw. Er wordt **geen commando-uitvoering** aangeboden via dit endpoint.
+
+**Belangrijk:** het scannerproces heeft voor Docker-metadata Docker CLI-rechten nodig; dat is een krachtige bevoegdheid. Gebruik een vertrouwde lokale host en stel de Docker-daemon niet via TCP bloot. Voor lokale v0.4-snapshots geldt de bestaande collector-cron, niet deze instelling.
+
+### Meldingen
+
+Meldingen in v0.5 zijn **alleen tijdelijke waarschuwingen in de geopende webbrowser** wanneer een server of container van gezond naar ongezond/offline verandert. Geen e-mail, push of automatische waarschuwing wanneer niemand het dashboard bekijkt. Die functies vereisen latere, afzonderlijk beveiligde integraties.
+
+### Logo
+
+Het dashboard gebruikt voorlopig een neutraal pictogram. Het oorspronkelijke CodePug-logo (mopshond met bril) wordt pas als merkbestand toegevoegd zodra het bronbestand is bevestigd. Een hertekend logo zou onbedoeld afwijken van het echte merkbeeld.
+
 ## Talen / languages
 
 - Het dashboard biedt **Nederlands (nl)** en **Engels (en)** via de taalkeuze rechtsboven.
