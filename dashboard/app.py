@@ -242,3 +242,44 @@ async def ingest(agent_id: str, request: Request):
 @app.get("/healthz")
 def health():
     return {"status":"live"}
+
+
+@app.post("/api/settings")
+def api_update_settings(form: DashboardSettingsIn, request: Request,
+                        _: Annotated[None, Depends(require_admin)]):
+    guard_mutation(request)
+    put_settings(form.model_dump())
+    return {"saved": True, "settings": get_settings()}
+
+
+@app.patch("/api/agents/{agent_id}")
+def api_update_agent(agent_id: str, form: AgentSettingsIn, request: Request,
+                     _: Annotated[None, Depends(require_admin)]):
+    guard_mutation(request)
+    if not update_agent(agent_id, form.label, form.scan_interval):
+        raise HTTPException(404, "Agent not found")
+    return {"saved": True}
+
+
+@app.delete("/api/agents/{agent_id}")
+def api_delete_agent(agent_id: str, request: Request,
+                     _: Annotated[None, Depends(require_admin)]):
+    guard_mutation(request)
+    if not delete_agent(agent_id):
+        raise HTTPException(404, "Agent not found")
+    return {"deleted": True}
+
+
+@app.get("/api/agent-config/{agent_id}")
+def api_agent_config(agent_id: str, request: Request):
+    # Only the agent's own token permits access to this safe cadence setting.
+    agent = agent_info(agent_id)
+    if agent is None:
+        raise HTTPException(404, "Unknown agent")
+    authorization = request.headers.get("authorization", "")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Bearer token required")
+    digest = hashlib.sha256(authorization[7:].encode()).hexdigest()
+    if not hmac.compare_digest(digest, agent["token_hash"]):
+        raise HTTPException(403, "Invalid agent token")
+    return {"scan_interval": max(60, min(3600, int(agent["scan_interval"])))}
