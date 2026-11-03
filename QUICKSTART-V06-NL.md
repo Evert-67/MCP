@@ -17,21 +17,21 @@ python3 scripts/setup_v06.py
 ```
 
 Kies een wachtwoordzin van minimaal 12 tekens. De configurator slaat de hash
-automatisch op in \`.env\`. **Je hoeft geen hash meer te kopiëren.**
+automatisch op in `.env`. **Je hoeft geen hash meer te kopiëren.**
 
 ### Bestaande snapshots gebruiken (optioneel)
 
-Open \`.env\` alleen als je de collector wilt gebruiken:
+Open `.env` alleen als je de collector wilt gebruiken:
 
 ```bash
 nano .env
 ```
 
-Pas \`HOST_SNAPSHOT_DIR=./host-data\` aan naar de **daadwerkelijke**
-map met je v0.4-\`status.json\` als die beschikbaar is. Dit pad moet vanaf de
+Pas `HOST_SNAPSHOT_DIR=./host-data` aan naar de **daadwerkelijke**
+map met je v0.4-`status.json` als die beschikbaar is. Dit pad moet vanaf de
 host een leesbare map zijn. De originele v0.4 blijft draaien.
 
-Laat \`BIND_IP=127.0.0.1\` en \`DASHBOARD_PORT=8769\` staan.
+Laat `BIND_IP=127.0.0.1` en `DASHBOARD_PORT=8769` staan.
 
 ### Starten
 
@@ -55,7 +55,7 @@ ssh -L 8769:127.0.0.1:8769 evert@192.168.2.20
 
 Vervang gebruiker/IP als ze anders zijn. Ga naar **http://127.0.0.1:8769**.
 
-Inlognaam \`admin\`, wachtwoordzin uit de setup.
+Inlognaam `admin`, wachtwoordzin uit de setup.
 
 ### Testen
 
@@ -74,7 +74,7 @@ docker compose down
 ```
 
 De v0.5-container wordt hierdoor niet geraakt. **Gebruik geen**
-\`docker compose down\` in de map van je werkende v0.5.
+`docker compose down` in de map van je werkende v0.5.
 
 ## Wat werkt nog niet?
 
