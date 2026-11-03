@@ -110,7 +110,7 @@ def build_state():
     if HOST_SNAPSHOT.is_file():
         try:
             s = json.loads(HOST_SNAPSHOT.read_text(encoding="utf-8"))
-            servers.append({"id":"local", "label":str(s.get("hostname","EB-UBU-HOME"))[:80],
+            servers.append({"id":"local", "label":str(s.get("hostname","Local server"))[:80],
                             "type":"local", "collected_at":s.get("collected_at"),
                             "memory":s.get("memory",{}), "disk_root":s.get("disk_root",{})})
             for c in clean_containers(s.get("containers", [])):
