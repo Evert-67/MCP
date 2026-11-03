@@ -8,7 +8,7 @@ import re
 
 def one_line(value, limit: int) -> str:
     """Do not allow a host-provided label to smuggle extra report instructions."""
-    return re.sub(r"[\\x00-\\x1f\\x7f]+", " ", str(value))[:limit]
+    return re.sub(r"[\x00-\x1f\x7f]+", " ", str(value))[:limit]
 
 
 def build_diagnosis(service: dict, host: dict) -> dict:
