@@ -1,10 +1,10 @@
 # CodePug Server Control v0.5
 
-Donker, mobielvriendelijk dashboard voor **Ubuntu/Docker en meerdere homeservers**. Werkt naast de bestaande CodePug Homeserver MCP v0.4 en de OpenAI Secure MCP Tunnel.
+Donker, mobielvriendelijk **meertalig** dashboard voor verschillende homeservers en meerdere hosts. De centrale webapp draait als Docker-container. Een lokale snapshotbron is optioneel; externe agents sturen zelf hun inventaris via HTTPS. De bestaande CodePug Homeserver MCP v0.4 en OpenAI Secure MCP Tunnel zijn optionele integraties, geen vereisten.
 
 > **Status v0.5:** werkende webinterface, risicoprofielen, automatische inventarisatie uit bestaande snapshots, agent-registratie en agent-ingest voor extra servers. **Update-uitvoering is uitgeschakeld.** De bestaande v0.4-update-engine wordt niet automatisch aangeroepen. De uitvoeringsagent, back-upcontrole, rollback en expliciete actieautorisatie volgen pas na afzonderlijke tests.
 
-## Installeren (EB-UBU-HOME)
+## Installeren op iedere Docker-host
 
 ```bash
 # Kies een map BUITEN de bestaande MCP-installatie:
@@ -21,15 +21,22 @@ sudo chown 10001:10001 appdata
 sudo chmod 700 appdata
 docker compose up -d --build
 # Open via SSH-portforward op je laptop:
-# ssh -L 8768:127.0.0.1:8768 evert@192.168.2.20
+# ssh -L 8768:127.0.0.1:8768 gebruiker@adres-van-jouw-server
 # Ga naar http://127.0.0.1:8768
 ```
 
-**Let op:** als je de GitHub-repo naar een map clonet, gebruik dan die map in plaats van de voorbeeldmap. De bindmount `/opt/codepug-mcp/data` verwijst bewust naar de bestaande v0.4-snapshots.
+**Let op:** als je de GitHub-repo naar een map clonet, gebruik dan die map in plaats van de voorbeeldmap. Standaard is `HOST_SNAPSHOT_DIR=./host-data`: een lege lokale map; zonder v0.4 kun je de lokale host gewoon aanmelden via de meegeleverde `agent/scan.py`. Heb je al een JSON-collector, zet dan bijvoorbeeld `HOST_SNAPSHOT_DIR=/pad/naar/collector/data` in `.env`. **Geen hardcoded CodePug- of gebruikerspaden.**
 
 ### Laptoptoegang
 
-De Compose bindt standaard uitsluitend op `127.0.0.1:8768`. Gebruik een SSH-forward of een TLS-beveiligde proxy. Wil je op het LAN rechtstreeks verbinden, zet `BIND_IP=192.168.2.20` in `.env` en beveilig de netwerktoegang. HTTP Basic mag **niet via onversleuteld internet** lopen.
+De Compose bindt standaard uitsluitend op `127.0.0.1:8768`. Gebruik een SSH-forward of een TLS-beveiligde proxy. Wil je op het LAN rechtstreeks verbinden, zet `BIND_IP=192.168.1.20` in `.env` en beveilig de netwerktoegang. HTTP Basic mag **niet via onversleuteld internet** lopen.
+
+## Talen / languages
+
+- Het dashboard biedt **Nederlands (nl)** en **Engels (en)** via de taalkeuze rechtsboven.
+- De browsertaal bepaalt de eerste selectie (onbekende talen vallen terug op Engels); daarna blijft de keuze lokaal in de browser bewaard. Er worden geen taalvoorkeuren naar de hub gestuurd.
+- Vertalingen staan in `dashboard/static/locales/en.json`. Nederlands is de brontaal; ontbrekende vertalingen vallen terug op Nederlands. Een nieuwe taal kan zonder databasewijziging worden toegevoegd via een eigen JSON-catalogus en één extra vermelding in `dashboard/static/i18n.js` en `dashboard/templates/index.html`.
+- Server- en dienstnamen, notities en credentials worden niet automatisch vertaald. De API gebruikt nog vaste berichtteksten; verdere API-lokalisatie is vervolgwerk.
 
 ## Risicolagen
 
@@ -42,14 +49,27 @@ De scanner kent automatisch een **minimumrisico** toe: databases zijn *kritiek*,
 
 Voor daadwerkelijke updates zijn een aparte lokale uitvoeringscomponent, pinning/release checks, een bewezen back-up/restore, health checks, audit trail en per-actie-autorisatie vereist. v0.5 voert **geen** `docker compose pull/up` uit.
 
+## Platformonafhankelijk ontwerp
+
+De hub gebruikt een gedeeld inventarisatieformaat met hosts, containers, platformnaam en mogelijkheden (`capabilities`). Docker/Linux is de eerste scanner; Docker Desktop-hosts kunnen met de agent beperkte informatie aanleveren. Synology met Docker CLI kan onder voorwaarden werken. **Proxmox, DSM-pakketten, VM's, LXC, Kubernetes en Windows-services vereisen nog eigen adapters** — het dashboard monitort die dus nog niet automatisch.
+
+Voor een nieuwe adapter behouden we dezelfde API-structuur en maken we nieuwe risicoregels en tests. Geen scanner heeft mutatierechten nodig voor de hub; uitvoering is een afzonderlijke toekomstige component.
+
 ## Andere servers koppelen
 
 1. Klik **Server toevoegen** in het dashboard. Noteer het eenmalige agent-token en agent-ID.
-2. Installeer `agent/scan.py` op de andere Linux-/Docker-host met Python 3 en Docker CLI. Een Synology met Docker CLI/Container Manager kan ook werken; anders wordt een DSM-API-adapter een later onderdeel.
+2. Installeer `agent/scan.py` op een host met Python 3 en Docker CLI. Dit kan ook je **eerste/lokale host** zijn als je geen bestaande snapshotcollector hebt. Voor niet-Docker-systemen maken we later een platformadapter.
 3. Maak op die host een privé-tokenbestand, bijvoorbeeld `/etc/codepug/agent.token` (mode `0600`), en stel `CODEPUG_HUB_URL`, `CODEPUG_AGENT_ID` en `CODEPUG_TOKEN_FILE` in.
 4. Start `python3 agent/scan.py` of maak een systemd-timer van 60–120 seconden. De agent **pusht uitgaand via HTTPS**. Gebruik Tailscale + TLS of een interne veilige reverse proxy.
 
-De agent leest metadata via Docker CLI. **Het account met Docker CLI-rechten is zeer machtig**; geef uitsluitend een vertrouwde, afgeschermde gebruiker toegang. De webcontainer zelf ontvangt **geen** Docker-socket en geen SSH-sleutels.
+De agent scant lokaal zonder vooraf ingevoerde containerlijst en rapporteert alleen inventarisatiegegevens plus platform/capabilities. Hij leest metadata via Docker CLI. **Het account met Docker CLI-rechten is zeer machtig**; geef uitsluitend een vertrouwde, afgeschermde gebruiker toegang. De webcontainer zelf ontvangt **geen** Docker-socket en geen SSH-sleutels.
+
+## Extra talen toevoegen
+
+1. Kopieer `dashboard/static/locales/en.json` naar bijvoorbeeld `dashboard/static/locales/de.json` en vertaal de waarden (niet de Nederlandse sleutels).
+2. Voeg `de: 'Deutsch'` toe aan `LANGUAGES` in `dashboard/static/i18n.js`.
+3. Voeg `<option value="de">Deutsch</option>` toe onder `#language` in `dashboard/templates/index.html`.
+4. Test de mobiele interface, alle dialoogvensters, de risico-uitleg en de fallback voor ontbrekende vertalingen.
 
 ## GitHub en secrets
 
