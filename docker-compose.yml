@@ -15,7 +15,7 @@ services:
       - HOST_SNAPSHOT=/host-snapshot/status.json
     volumes:
       - ./appdata:/appdata:rw
-      - /opt/codepug-mcp/data:/host-snapshot:ro
+      - ${HOST_SNAPSHOT_DIR:-./host-data}:/host-snapshot:ro
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
