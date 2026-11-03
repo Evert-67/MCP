@@ -18,7 +18,7 @@
     <div class="sidebar-bottom"><div class="connection-dot"></div><div><strong>MCP verbonden</strong><small>v0.5 • Beheermodus veilig</small></div></div>
   </aside>
   <main class="main" id="overview">
-    <header class="topbar"><button class="btn d-md-none menu-btn" id="menu"><i class="bi bi-list"></i></button><div class="crumb">Infrastructuur <i class="bi bi-chevron-right"></i> <span>Overzicht</span></div><div class="top-actions"><span class="top-secure"><i class="bi bi-lock-fill"></i> Beveiligde sessie</span><button class="icon-btn" id="refresh" title="Vernieuwen"><i class="bi bi-arrow-clockwise"></i></button><div class="avatar">CP</div></div></header>
+    <header class="topbar"><button class="btn d-md-none menu-btn" id="menu"><i class="bi bi-list"></i></button><div class="crumb">Infrastructuur <i class="bi bi-chevron-right"></i> <span>Overzicht</span></div><div class="top-actions"><label for="language" class="visually-hidden">Language / Taal</label><select id="language" class="filter-select" title="Language / Taal" aria-label="Language / Taal"><option value="nl">Nederlands</option><option value="en">English</option></select><span class="top-secure"><i class="bi bi-lock-fill"></i> Beveiligde sessie</span><button class="icon-btn" id="refresh" title="Vernieuwen"><i class="bi bi-arrow-clockwise"></i></button><div class="avatar">CP</div></div></header>
     <div class="content">
       <div class="intro"><div><div class="eyebrow"><span class="pulse-dot"></span> INFRASTRUCTURE CONTROL CENTER</div><h1>Goedemorgen, beheerder <span>👋</span></h1><p>Je volledige serveromgeving, helder op één plek. Monitor, beoordeel en houd de controle.</p></div><div class="intro-actions"><span id="updated">Gegevens laden...</span><button class="primary-btn" id="add-server"><i class="bi bi-plus-lg"></i> Server toevoegen</button></div></div>
       <div class="alert-ribbon"><i class="bi bi-shield-lock-fill"></i><div><strong>Veilige testmodus actief</strong><span>Risicoprofielen kun je beheren. Updates worden nog niet uitgevoerd totdat de uitvoeringsagent apart is vrijgegeven.</span></div><span class="ribbon-tag">UITVOERING UIT</span></div>
@@ -34,5 +34,6 @@
 </div>
 <div class="overlay" id="overlay" hidden><div class="modal-shell"><div class="modal-head"><div><div class="eyebrow">CODEPUG CONTROL CENTER</div><h2 id="modal-title">Instellingen</h2></div><button id="close-modal" class="icon-btn"><i class="bi bi-x-lg"></i></button></div><div id="modal-content"></div></div></div>
 <div id="toast" class="toast-custom" hidden></div>
+<script src="/static/i18n.js"></script>
 <script src="/static/app.js"></script>
 </body></html>
