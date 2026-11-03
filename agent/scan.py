@@ -10,6 +10,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -73,8 +74,46 @@ def main():
     with urlopen(req,timeout=25) as r:
         print(r.read().decode())
 
-if __name__=='__main__':
-    try: main()
-    except Exception as e:
-        print(f"CodePug scan mislukt: {type(e).__name__}: {e}",file=sys.stderr)
-        sys.exit(1)
+
+def configured_interval():
+    """Fetch only cadence via the agent's own token. No remote shell commands."""
+    url = os.environ["CODEPUG_HUB_URL"].rstrip("/")
+    if not url.startswith("https://") and not (
+        url.startswith("http://127.0.0.1:") or url.startswith("http://localhost:")
+    ):
+        raise ValueError("HTTPS is required")
+    sid = os.environ["CODEPUG_AGENT_ID"]
+    token = Path(os.environ["CODEPUG_TOKEN_FILE"]).read_text().strip()
+    req = Request(
+        f"{url}/api/agent-config/{sid}",
+        headers={"Authorization": "Bearer " + token},
+    )
+    with urlopen(req, timeout=15) as response:
+        data = json.load(response)
+    return max(60, min(3600, int(data.get("scan_interval", 120))))
+
+
+if __name__ == '__main__':
+    if sys.argv[1:] == ["--loop"]:
+        while True:
+            try:
+                main()
+            except Exception as exc:
+                print(f"CodePug scan failed: {type(exc).__name__}: {exc}",
+                      file=sys.stderr, flush=True)
+            try:
+                interval = configured_interval()
+            except Exception:
+                # Fail safe: no busy loop when the hub is unavailable.
+                interval = 120
+            time.sleep(interval)
+    elif not sys.argv[1:]:
+        try:
+            main()
+        except Exception as exc:
+            print(f"CodePug scan failed: {type(exc).__name__}: {exc}",
+                  file=sys.stderr)
+            sys.exit(1)
+    else:
+        print("Usage: scan.py [--loop]", file=sys.stderr)
+        sys.exit(2)
