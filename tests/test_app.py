@@ -21,6 +21,31 @@ class WebTests(unittest.TestCase):
             r=client.get('/api/state',auth=('admin','test-password-not-for-use'))
             self.assertEqual(r.status_code,200)
             self.assertFalse(r.json()['execution_enabled'])
+    def test_diagnostics_requires_auth_and_is_read_only(self):
+        from unittest.mock import patch
+        sample = {
+            "services": [{
+                "key": "local/demo", "server_id": "local", "name": "demo",
+                "status": "Up 2 days (unhealthy)", "state": "running",
+                "risk": "high", "notes": "DO NOT COPY"
+            }],
+            "servers": [{
+                "id": "local", "label": "Test Ubuntu", "online": True,
+                "age_seconds": 11
+            }]
+        }
+        with TestClient(app) as client, patch('dashboard.app.build_state', return_value=sample):
+            url = '/api/diagnostics?service_key=local%2Fdemo'
+            self.assertEqual(client.get(url).status_code, 401)
+            result = client.get(url, auth=('admin','test-password-not-for-use'))
+            self.assertEqual(result.status_code, 200, result.text)
+            content = result.json()
+            self.assertEqual(content['code'], 'unhealthy')
+            self.assertFalse(content['execution_enabled'])
+            self.assertNotIn('DO NOT COPY', str(content))
+            self.assertEqual(client.get('/api/diagnostics?service_key=local%2Fmissing',
+                                        auth=('admin','test-password-not-for-use')).status_code, 404)
+
     def test_agent_flow(self):
         with TestClient(app) as client:
             auth=('admin','test-password-not-for-use')
