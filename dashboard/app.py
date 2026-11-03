@@ -112,7 +112,9 @@ def build_state():
             s = json.loads(HOST_SNAPSHOT.read_text(encoding="utf-8"))
             servers.append({"id":"local", "label":str(s.get("hostname","Local server"))[:80],
                             "type":"local", "collected_at":s.get("collected_at"),
-                            "memory":s.get("memory",{}), "disk_root":s.get("disk_root",{})})
+                            "memory":s.get("memory",{}), "disk_root":s.get("disk_root",{}),
+                            "platform":str(s.get("platform") or "unknown")[:32],
+                            "capabilities":["docker-inventory"]})
             for c in clean_containers(s.get("containers", [])):
                 services.append(("local", c))
         except (OSError, ValueError):
@@ -122,7 +124,9 @@ def build_state():
         payload = json.loads(rep["payload"]) if rep else {}
         servers.append({"id":a["id"],"label":a["label"],"type":"agent",
                         "collected_at":rep["collected_at"] if rep else None,
-                        "memory":payload.get("memory",{}),"disk_root":payload.get("disk_root",{})})
+                        "memory":payload.get("memory",{}),"disk_root":payload.get("disk_root",{}),
+                        "platform":payload.get("platform","unknown"),
+                        "capabilities":payload.get("capabilities",[])})
         for c in clean_containers(payload.get("containers", [])):
             services.append((a["id"], c))
     out = []
@@ -212,7 +216,10 @@ async def ingest(agent_id: str, request: Request):
         raise HTTPException(422, "Invalid report")
     collected = parse_timestamp(payload.get("collected_at"))
     report = {"collected_at":collected, "containers":clean_containers(payload.get("containers",[])),
-              "memory":payload.get("memory",{}), "disk_root":payload.get("disk_root",{})}
+              "memory":payload.get("memory",{}), "disk_root":payload.get("disk_root",{}),
+              "platform":str(payload.get("platform") or "unknown")[:32],
+              "capabilities":[c for c in payload.get("capabilities",[]) if isinstance(c,str)][:16]
+                            if isinstance(payload.get("capabilities",[]),list) else []}
     save_report(agent_id, report)
     return {"ok":True, "received":len(report["containers"])}
 
