@@ -14,3 +14,19 @@
   .top-secure,.top-actions .avatar{display:none}
   .top-actions #language{min-width:90px;max-width:108px}
 }
+
+
+/* Central settings and server-agent controls */
+.settings-grid{margin-top:0;align-items:start}
+.settings-hint{display:block;color:var(--muted);font-size:11px;margin-top:6px}
+.settings-switch{display:flex;align-items:center;gap:10px;color:var(--text);font-size:12px;padding:9px 0;cursor:pointer}
+.settings-switch input{appearance:auto;width:17px;height:17px;accent-color:var(--blue)}
+.settings-agent-list{max-height:410px;overflow-y:auto;margin-bottom:17px}
+.settings-agent{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--border)}
+.settings-agent strong{font-size:12px;display:block}
+.settings-agent small{font-size:10px;display:block;color:var(--muted);word-break:break-all;margin-top:3px}
+.agent-actions{display:flex;gap:6px;flex-shrink:0}
+.danger-outline{border-color:#704354;color:#f78ca2}
+.danger-outline:hover{background:#482635}
+#settings{scroll-margin-top:25px}
+@media(max-width:800px){.settings-grid{grid-template-columns:1fr}}
