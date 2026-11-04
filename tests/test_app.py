@@ -46,6 +46,32 @@ class WebTests(unittest.TestCase):
             self.assertEqual(client.get('/api/diagnostics?service_key=local%2Fmissing',
                                         auth=('admin','test-password-not-for-use')).status_code, 404)
 
+    def test_recovery_endpoints_authenticated_and_non_executable(self):
+        from unittest.mock import patch
+        sample = {
+            "services": [{
+                "key": "local/db", "server_id": "local", "name": "db",
+                "status": "Up", "state": "running", "risk": "critical",
+                "notes": "SHOULD-NOT-BE-EXPORTED"
+            }],
+            "servers": [{"id":"local","label":"Host","online":True,"age_seconds":15}]
+        }
+        with TestClient(app) as client, patch("dashboard.app.build_state", return_value=sample):
+            auth = ("admin","test-password-not-for-use")
+            self.assertEqual(client.get("/api/recovery/overview").status_code,401)
+            overview=client.get("/api/recovery/overview",auth=auth)
+            self.assertEqual(overview.status_code,200,overview.text)
+            self.assertFalse(overview.json()["execution_enabled"])
+            self.assertIsNone(overview.json()["verified_backup_count"])
+            self.assertEqual(overview.json()["hosts"][0]["backup_status"],"unknown")
+            plan=client.get("/api/recovery/plan?service_key=local%2Fdb",auth=auth)
+            self.assertEqual(plan.status_code,200,plan.text)
+            self.assertFalse(plan.json()["backup_verified"])
+            self.assertFalse(plan.json()["execution_enabled"])
+            self.assertNotIn("SHOULD-NOT-BE-EXPORTED",str(plan.json()))
+            self.assertEqual(client.get("/api/recovery/plan?service_key=local%2Fmissing",
+                                auth=auth).status_code,404)
+
     def test_agent_flow(self):
         with TestClient(app) as client:
             auth=('admin','test-password-not-for-use')
