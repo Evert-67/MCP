@@ -32,7 +32,9 @@ class PortabilityTests(unittest.TestCase):
 
     def test_agent_declares_capabilities(self):
         agent = (ROOT / "agent/scan.py").read_text(encoding="utf-8")
-        self.assertIn('"capabilities":["docker-inventory"]', agent)
+        self.assertIn('"docker-inventory"', agent)
+        self.assertIn('"host-health"', agent)
+        self.assertIn('"local-app-probes"', agent)
         self.assertIn("except (AttributeError, OSError):", agent)
 
 
