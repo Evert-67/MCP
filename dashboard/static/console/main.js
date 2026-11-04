@@ -147,7 +147,39 @@ function renderOverview(inc) {
    +"of platformproblemen vermoeden, maar stelt nooit zonder aanvullend bewijs een hoofdoorzaak vast."));
   return wrap;
 }
-function renderServers() {
+async function renderServers() {
+  let coverage={hosts:[]};
+  try { coverage=await getJSON("/api/health/overview"); }
+  catch { /* A lost health endpoint must not hide the container inventory. */ }
+  const hostReports=Object.fromEntries((coverage.hosts||[]).map(h=>[h.id,h]));
+  function hostCard(h) {
+    const report=hostReports[h.id]||{};
+    const linux=report.linux||{};
+    const docker=report.docker||{};
+    const checks=report.app_checks||[];
+    const details=el("details",{class:"cp-host-details"},
+      el("summary",{text:"Linux, Docker & app-controles bekijken"}),
+      el("div",{class:"cp-stack"},
+        row("Linux",(linux.pretty_name||"Niet gemeten")+
+          " · systemd: "+(linux.system_state||"onbekend")),
+        row("Pakketupdates","APT-cache: "+
+          (linux.updates_available==null?"Niet gemeten":linux.updates_available)),
+        row("Docker Engine",(docker.server_version||"Niet gemeten")+
+          " · daemon: "+(docker.daemon_active==null?"Onbekend":
+            docker.daemon_active?"Actief":"Niet actief")),
+        row("App-controles",checks.length+
+          " expliciete lokale controles; HTTP-bereikbaarheid is geen functietest"),
+        ...checks.map(c=>row(c.name,c.status+" · HTTP "+
+          (c.http_status??"geen antwoord"))),
+        note("Ontbrekende metingen zijn onbekend, niet gezond.")));
+    return card(h.label,hostStatus(h),
+      text("Platform: "+(h.platform||"Onbekend"),"cp-muted"),
+      small("Linux: "+(linux.pretty_name||"Niet gemeten")),
+      small("Docker: "+(docker.server_version||"Niet gemeten")),
+      small("Laatste meting: "+formatTime(h.collected_at)),
+      small("Diensten: "+(h.container_count??0)),
+      details);
+  }
   const hostSelect=el("select",{class:"cp-select","aria-label":"Filter op server"},
     el("option",{value:"",text:"Alle servers"}),
     ...state.servers.map(h=>el("option",{value:h.id,text:h.label})));
@@ -175,12 +207,7 @@ function renderServers() {
   search.addEventListener("input",paint);
   const wrapper=el("div",{},head("Servers & diensten",
       "Per host Linux, Docker en software. Een draaiend proces is niet altijd een gezonde app."),
-    el("div",{class:"cp-grid three"},...state.servers.map(h=>
-      card(h.label,hostStatus(h),
-        text("Platform: "+(h.platform||"Onbekend"),"cp-muted"),
-        small("Laatste meting: "+formatTime(h.collected_at)),
-        small("Diensten: "+(h.container_count??0)),
-        link("/console/incidents","Bekijk afwijkingen")))),
+    el("div",{class:"cp-grid three"},...state.servers.map(hostCard)),
     el("div",{class:"cp-section-head"},el("h2",{text:"Dienstenoverzicht"})),
     el("div",{class:"cp-actions-inline cp-filterbar"},search,hostSelect),
     el("div",{class:"cp-table-wrap"},
