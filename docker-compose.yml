@@ -1,13 +1,13 @@
-name: ${CODEPUG_PROJECT_NAME:-codepug-control-v06}
+name: ${CODEPUG_PROJECT_NAME:-codepug-control-v07}
 services:
   dashboard:
     build: .
-    image: codepug-control:v0.6.0-dev
+    image: codepug-control:v0.7.0-dev
     container_name: ${CODEPUG_CONTAINER_NAME:-codepug-control-v06}
     restart: unless-stopped
     init: true
     ports:
-      - "${BIND_IP:-127.0.0.1}:${DASHBOARD_PORT:-8769}:8768"
+      - "${BIND_IP:-127.0.0.1}:${DASHBOARD_PORT:-8770}:8768"
     env_file:
       - .env
     environment:
