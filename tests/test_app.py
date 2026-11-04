@@ -37,7 +37,7 @@ class WebTests(unittest.TestCase):
                 self.assertIn('data-page="'+page+'"',r.text)
                 self.assertIn('/static/console/main.js',r.text)
             self.assertEqual(client.get('/console/private',auth=auth).status_code,404)
-            self.assertIn('Goedemorgen, beheerder',
+            self.assertIn('Welkom, beheerder',
                           client.get('/legacy',auth=auth).text)
 
     def test_read_only_incidents_api_authorization(self):
