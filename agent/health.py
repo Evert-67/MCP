@@ -136,16 +136,13 @@ def load_local_checks(path: str | None) -> list[dict]:
         if (not isinstance(check_id, str) or not _ID.fullmatch(check_id)
                 or not isinstance(title, str) or not 1 <= len(title) <= 80
                 or type(port) is not int or not 1 <= port <= 65535
-                or not isinstance(route, str) or not _PATH.fullmatch(route)):
+                or not isinstance(route, str) or not _PATH.fullmatch(route)
+                or any(segment == ".." for segment in route.split("/"))
+                or "%" in route):
             continue
         result.append({"id": check_id, "name": title, "port": port, "path": route})
     return result
 
-
-class _NoRedirect:
-    """Attached by urllib opener, never follow a redirect to another host."""
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
 
 
 def check_local_http(config: dict) -> dict:
