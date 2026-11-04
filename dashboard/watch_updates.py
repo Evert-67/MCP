@@ -6,9 +6,7 @@ the inventory and performs bounded public Docker Hub requests when enabled.
 """
 from __future__ import annotations
 
-import json
 import logging
-import os
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -71,7 +69,12 @@ def run_cycle(*, get_state=None, checker=check_public_docker_hub,
     state = get_state()
     now = now or datetime.now(timezone.utc)
     checks = all_update_checks()
-    due = due_images(state.get("services", []), checks, interval, now)
+    # A stale/offline inventory is not evidence of what a host currently runs.
+    online_hosts = {host["id"] for host in state.get("servers", [])
+                    if host.get("online") is True}
+    eligible = [service for service in state.get("services", [])
+                if service.get("server_id") in online_hosts]
+    due = due_images(eligible, checks, interval, now)
     checked = candidates = 0
     for image, services in due.items():
         result = checker(image)
