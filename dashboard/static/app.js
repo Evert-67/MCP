@@ -10,8 +10,9 @@ function toast(text){let t=$('toast');t.textContent=text;t.hidden=false;setTimeo
 async function request(url,options={}){const r=await fetch(url,{credentials:'same-origin',...options});const p=await r.json().catch(()=>({}));if(!r.ok)throw Error(p.detail||`HTTP ${r.status}`);return p}
 const versionLabel=c=>{
   const u=c.update||{};
-  if(u.status==='candidate')return 'Nieuwe tag: '+(u.candidate_tag||'?');
-  if(u.status==='no_newer_found')return 'Geen nieuwere tag gevonden';
+  if(u.status==='candidate')return (u.source?.includes('GitHub')?'Nieuwere software: ':'Nieuwe image-tag: ')+(u.candidate_tag||'?');
+  if(u.status==='release_found')return 'Software-release '+(u.latest_release||'?')+' · huidige versie onbekend';
+  if(u.status==='no_newer_found')return 'Geen nieuwere versie gevonden';
   if(u.status==='incomplete')return 'Controle onvolledig';
   if(u.status==='unsupported')return 'Niet ondersteund';
   if(u.status==='check_failed')return 'Controle mislukt';
@@ -26,9 +27,12 @@ function render(){const s=model.services||[], hosts=model.servers||[];
 $('m-servers').textContent=hosts.length;$('m-online').textContent=t('{count} online',{count:hosts.filter(x=>x.online).length});$('m-containers').textContent=s.length;$('nav-count').textContent=s.length;
 $('m-running').textContent=t('{count} actief',{count:s.filter(running).length});$('m-stopped').textContent=t('{count} gestopt',{count:s.filter(x=>!running(x)).length});$('m-alerts').textContent=s.filter(x=>!running(x)||/unhealthy/i.test(x.status)).length;
 $('m-updates').textContent=s.filter(x=>x.update?.status==='candidate').length;
+const unknownReleases=s.filter(x=>x.update?.status==='release_found').length;
 $('m-updates-scan').textContent=model.settings?.auto_version_checks?
     'Achtergrondscan aan · elke '+(model.settings?.version_check_interval_hours||24)+' uur':
     'Achtergrondscan uitgeschakeld';
+if(unknownReleases)$('m-updates-scan').textContent+=
+    ' · '+unknownReleases+' release(s), geïnstalleerde versie onbekend';
 const newest=hosts.filter(x=>x.age_seconds!=null).sort((a,b)=>a.age_seconds-b.age_seconds)[0];$('updated').textContent=newest?t('Laatste meting {seconds}s geleden',{seconds:newest.age_seconds}):'Nog geen metingen';
 $('server-list').innerHTML=hosts.length?hosts.map(x=>`<div class="server-card"><div class="server-header"><div class="server-icon"><i class="bi ${x.type==='local'?'bi-pc-display':'bi-hdd-network'}"></i></div><div><strong>${esc(x.label)}</strong><small>${x.type==='local'?'Lokale snapshot':'Externe agent'}</small></div><span class="server-status ${x.online?'':'offline'}">${x.online?'● Online':'● Offline'}</span></div><div class="server-details"><div><span>Containers</span><strong>${x.container_count}</strong></div><div><span>Vrije RAM</span><strong>${x.memory?.available_bytes?(x.memory.available_bytes/1e9).toFixed(1)+' GB':'—'}</strong></div><div><span>Laatste scan</span><strong>${x.age_seconds!=null?x.age_seconds+'s':'—'}</strong></div></div></div>`).join(''):'<div class="loading">Nog geen servers gevonden. Controleer de snapshot of voeg een agent toe.</div>';
 const old=$('filter-server').value;$('filter-server').innerHTML='<option value="">Alle servers</option>'+hosts.map(x=>`<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('');$('filter-server').value=hosts.some(x=>x.id===old)?old:'';
@@ -50,9 +54,10 @@ function editService(key){
    ${['low','medium','high','critical'].map(r=>`<option value="${r}" ${userRisk===r?'selected':''}>${labels[r]}</option>`).join('')}
   </select><div class="helper">Je kunt Laag kiezen. De veiligheidsinschatting blijft onafhankelijk bestaan; zo wordt nooit automatisch een gevaarlijke update toegestaan.</div></div>
   <div class="form-row"><label>Versiecontrole</label><div class="helper">Gebruikte image: <strong>${esc(c.image)}</strong></div>
+   <div class="helper">Softwareversie op host: <strong>${esc(c.software_version||'Onbekend (geen versiegegevens in snapshot)')}</strong></div>
    <div class="helper" id="version-status">${esc(versionSummary(c))}</div>
    <button type="button" class="secondary-btn" id="version-check"><i class="bi bi-arrow-repeat"></i> Controleer nieuwere versie</button>
-   <div class="helper">Alleen publieke Docker Hub-images met een genummerde tag. Na klikken zoeken we maximaal 200 tags; er wordt niets bijgewerkt.</div>
+   <div class="helper">De checker gebruikt voor Homarr de officiële GitHub-releases. Voor bepaalde publieke Docker Hub-images worden tags bekeken. Zonder lokale softwareversie kun je de update niet bevestigen. Er wordt niets bijgewerkt.</div>
   </div>
   <div class="form-row"><label>Updatebeleid</label><select class="form-field" id="policy-mode">
    <option value="monitor" ${c.mode==='monitor'?'selected':''}>Alleen volgen</option>
@@ -83,12 +88,16 @@ function editService(key){
      });
      const label=r.status==='candidate'?
        'Nieuwere tag gevonden: '+r.candidate_tag:
-       r.status==='no_newer_found'?'Geen nieuwere tag gevonden':
+       r.status==='release_found'?'Officiële release '+r.latest_release+
+       ' gevonden, geïnstalleerde versie onbekend':
+       r.status==='no_newer_found'?'Geen nieuwere versie gevonden':
        r.status==='incomplete'?'Controle onvolledig':
        r.status==='unsupported'?'Niet ondersteund':'Controle mislukt';
      status.textContent=label+' — '+r.note;
      const svc=model.services.find(s=>s.key===key);
-     if(svc) svc.update={status:r.status,candidate_tag:r.candidate_tag||'',checked_at:new Date().toISOString()};
+     if(svc) svc.update={status:r.status,candidate_tag:r.candidate_tag||'',
+       latest_release:r.latest_release||'',source:r.source||'',note:r.note||'',
+       checked_at:new Date().toISOString()};
      renderRows();
    }catch(err){status.textContent='Versiecontrole mislukt: '+err.message}
    finally{button.disabled=false}
