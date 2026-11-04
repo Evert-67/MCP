@@ -25,5 +25,6 @@ jobs:
           node --check dashboard/static/i18n.js
           node --check dashboard/static/app.js
           node --check dashboard/static/diagnose.js
+          node --check dashboard/static/recovery.js
       - name: Unit tests
         run: python -m unittest discover -s tests -v
