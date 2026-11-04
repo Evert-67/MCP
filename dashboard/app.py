@@ -287,6 +287,13 @@ def startup():
 
 @app.get("/")
 def home(_: Annotated[None, Depends(require_admin)]):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/console/overview", status_code=307)
+
+
+@app.get("/legacy")
+def legacy_dashboard(_: Annotated[None, Depends(require_admin)]):
+    """Keep original long dashboard only as a compatibility path."""
     return FileResponse(ROOT / "templates" / "index.html")
 
 
