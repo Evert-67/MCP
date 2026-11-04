@@ -47,3 +47,25 @@
 .diagnosis-feedback{min-height:20px;color:var(--green);font-size:12px;margin:8px 0}
 .diagnosis-feedback[data-error=true]{color:var(--red)}
 @media(max-width:900px){.diagnosis-grid{grid-template-columns:1fr}.diagnosis-panel{padding:16px}}
+
+
+/* v0.7 — Backup & Recovery planning (read-only, no optimistic status colors) */
+#recovery{scroll-margin-top:22px}
+.recovery-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+.recovery-metrics .metric{min-width:0}
+.recovery-metric-text{font-size:23px;font-weight:700;color:var(--muted);margin-top:10px;line-height:1.3}
+.recovery-banner{display:flex;gap:10px;align-items:start;margin:0 0 16px;background:var(--soft);border:1px solid var(--border);color:var(--muted)}
+.recovery-grid{margin-top:0;align-items:start}
+.recovery-host{display:flex;gap:14px;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding:13px 0}
+.recovery-host strong{display:block;font-size:12px;overflow-wrap:anywhere;color:var(--text)}
+.recovery-host small{display:block;font-size:11px;margin-top:5px;color:var(--muted)}
+.recovery-unknown{flex-shrink:0;border-radius:7px;background:var(--soft);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:5px 8px}
+.recovery-plan-output{padding:12px 0;line-height:1.65;font-size:12px}
+.recovery-plan-output h3{font-size:13px;font-weight:700;color:var(--text)}
+.recovery-plan-output small{color:var(--muted)}
+.recovery-warning{border-left:3px solid var(--yellow);padding:8px 10px;background:var(--soft);color:var(--text);font-size:12px}
+.recovery-checklist{padding-left:23px;margin:14px 0;color:var(--muted);font-size:12px}
+.recovery-checklist li+li{margin-top:8px}
+#recovery-plan-button:disabled{opacity:.48;cursor:not-allowed}
+@media(max-width:900px){.recovery-metrics{grid-template-columns:1fr}.recovery-grid{grid-template-columns:1fr}}
+@media(max-width:570px){.recovery-host{align-items:start;flex-direction:column;gap:8px}.recovery-metric-text{font-size:20px}}
