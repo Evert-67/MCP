@@ -31,7 +31,7 @@ const old=$('filter-server').value;$('filter-server').innerHTML='<option value="
 $('events').innerHTML=model.events?.length?model.events.map(e=>`<div class="event"><div class="event-icon"><i class="bi bi-pencil-square"></i></div><div><strong>${esc(e.kind)}</strong><small>${esc(e.subject)} · ${esc(e.detail)}</small></div><time>${esc(e.time?.slice(11,16))}</time></div>`).join(''):'<div class="loading">Nog geen wijzigingen geregistreerd</div>';
 renderRows();renderSettings();i18n.translate();}
 function renderRows(){let filtered=(model.services||[]).filter(x=>(!$('filter-server').value||x.server_id===$('filter-server').value)&&(!$('filter-status').value||($('filter-status').value==='running'?running(x):!running(x)))&&(!$('filter-risk').value||x.risk===$('filter-risk').value)&&[x.name,x.image,x.project].join(' ').toLowerCase().includes($('search').value.toLowerCase()));
-$('results-count').textContent=t('{count} resultaten',{count:filtered.length});$('service-rows').innerHTML=filtered.length?filtered.map(c=>`<tr data-key="${esc(c.key)}"><td><div class="service-name">${esc(c.name)}</div><div class="service-image">${esc(c.image)}</div></td><td>${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}</td><td><span class="pill ${running(c)?'running':'stopped'}"><span class="risk-mark"></span>${running(c)?t('Actief'):t('Gestopt')}${/unhealthy/i.test(c.status)?' · ongezond':''}</span></td><td><span class="pill ${c.risk}"><span class="risk-mark"></span>${labels[c.risk]}</span></td><td><span class="policy-text">${esc(versionLabel(c))}</span></td><td><span class="policy-text">${labels[c.mode]}</span></td><td><button class="edit-btn" title="Beleid bewerken"><i class="bi bi-sliders2"></i></button></td></tr>`).join(''):'<tr><td colspan="7" class="loading">Geen diensten gevonden voor deze filters</td></tr>';
+$('results-count').textContent=t('{count} resultaten',{count:filtered.length});$('service-rows').innerHTML=filtered.length?filtered.map(c=>`<tr data-key="${esc(c.key)}"><td><div class="service-name">${esc(c.name)}</div><div class="service-image">${esc(c.image)}</div></td><td>${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}</td><td><span class="pill ${running(c)?'running':'stopped'}"><span class="risk-mark"></span>${running(c)?t('Actief'):t('Gestopt')}${/unhealthy/i.test(c.status)?' · ongezond':''}</span></td><td><span class="pill ${c.risk}" title="Automatische veiligheidsinschatting: ${esc(labels[c.minimum_risk])}"><span class="risk-mark"></span>${labels[c.risk]}</span>${c.risk!==c.safety_risk?`<small class="policy-safety-note">Veiligheid: ${labels[c.safety_risk]}</small>`:""}</td><td><span class="policy-text">${esc(versionLabel(c))}</span></td><td><span class="policy-text">${labels[c.mode]}</span></td><td><button class="edit-btn" title="Beleid bewerken"><i class="bi bi-sliders2"></i></button></td></tr>`).join(''):'<tr><td colspan="7" class="loading">Geen diensten gevonden voor deze filters</td></tr>';
 $('service-rows').querySelectorAll('tr[data-key]').forEach(tr=>tr.addEventListener('click',()=>editService(tr.dataset.key)))}
 function editService(key){
  const c=model.services.find(x=>x.key===key);if(!c)return;
@@ -53,13 +53,21 @@ function editService(key){
   <div class="form-row"><label>Updatebeleid</label><select class="form-field" id="policy-mode">
    <option value="monitor" ${c.mode==='monitor'?'selected':''}>Alleen volgen</option>
    <option value="approve" ${c.mode==='approve'?'selected':''}>Na goedkeuring</option>
-   <option value="auto" ${c.mode==='auto'?'selected':''} ${automaticDisabled}>Automatisch (gepland; alleen veilig laag risico)</option>
+   <option id="policy-auto-option" value="auto" ${c.mode==='auto'?'selected':''} ${automaticDisabled}>Automatisch (gepland; alleen veilig laag risico)</option>
   </select></div>
   <div class="form-row"><label>Notities</label><textarea class="form-area" id="policy-notes" maxlength="500">${esc(c.notes)}</textarea></div>
   <div class="panel-note"><i class="bi bi-shield-lock"></i> Risico is niet hetzelfde als updatetoestemming. v0.7 voert geen updates uit: eerst back-up, compatibiliteit, healthcheck en expliciete goedkeuring.</div>
   <div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button class="primary-btn" type="submit">Beleid opslaan</button></div>
  </form>`);
  $('cancel').onclick=close;
+ const syncPolicyMode=()=>{
+   const auto=$('policy-auto-option');
+   auto.disabled=c.minimum_risk!=='low' ||
+     !['','low'].includes($('risk-value').value);
+   if(auto.disabled&&$('policy-mode').value==='auto')$('policy-mode').value='approve';
+ };
+ $('risk-value').onchange=syncPolicyMode;
+ syncPolicyMode();
  $('version-check').onclick=async ()=>{
    const button=$('version-check');button.disabled=true;
    const status=$('version-status');
