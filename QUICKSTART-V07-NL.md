@@ -33,6 +33,10 @@ docker compose up -d --build
 docker compose ps
 ```
 
+Je hoort nu **twee** v0.7-containers te zien: `codepug-control-v07`
+en `codepug-version-watcher-v07` (geen eigen webpoort). Dit is expres:
+de versiechecker kan doorgaan wanneer je browser gesloten is.
+
 ## Openen vanuit Windows
 
 Start in een afzonderlijk PowerShell-venster:
@@ -52,7 +56,9 @@ en de gekozen wachtwoordzin.
 4. **Toon herstelplan** voor een dienst: een checklist zonder uitvoerbare knoppen.
 5. De bestaande **AI & Diagnose** en v0.6-functies.
 6. Onder **Diensten > Risicobeleid** kan nu ook **Laag** gekozen worden. De harde veiligheidsinschatting verandert daardoor niet.
-7. Per dienst: **Controleer nieuwere versie** voor een optionele read-only controle van publieke Docker Hub-images met genummerde tags.
+7. Ga naar **Instellingen** en schakel **Zoek op de achtergrond naar nieuwe Docker Hub-tags** bewust in. Kies bijvoorbeeld **Elke 24 uur** en klik **Instellingen opslaan**.
+8. Open het overzicht: de tegel **Nieuwe versies gevonden** en de kolom **Versiecontrole** worden vanzelf bijgewerkt wanneer de eerste scans klaar zijn.
+9. Per dienst blijft **Controleer nieuwere versie** beschikbaar voor een directe handmatige controle.
 
 ## Stoppen van uitsluitend v0.7
 
@@ -63,6 +69,8 @@ docker compose down
 
 **Let op:** nooit `docker compose down` in de map van een andere CodePug-versie
 en geen productiedata of `/opt/codepug-mcp/data` verwijderen.
+
+Bekijk de achtergrondchecker met `docker compose logs --tail=50 version-watcher`. Geen waarschuwingen over updates? Controleer of de functie in het dashboard is ingeschakeld; veel images met `:latest` of van GHCR zijn nog niet te vergelijken.
 
 Na een nieuwe commit op de v0.7-branch kun je de testinstallatie bijwerken met `cd /opt/codepug-control-v07 && git pull --ff-only && docker compose up -d --build`.
 
