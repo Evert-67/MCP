@@ -1,13 +1,13 @@
-name: ${CODEPUG_PROJECT_NAME:-codepug-control-v07}
+name: ${CODEPUG_PROJECT_NAME:-codepug-console-preview}
 services:
   dashboard:
     build: .
-    image: codepug-control:v0.7.0-dev
-    container_name: ${CODEPUG_CONTAINER_NAME:-codepug-control-v07}
+    image: codepug-console:preview
+    container_name: ${CODEPUG_CONTAINER_NAME:-codepug-console-preview}
     restart: unless-stopped
     init: true
     ports:
-      - "${BIND_IP:-127.0.0.1}:${DASHBOARD_PORT:-8770}:8768"
+      - "${BIND_IP:-127.0.0.1}:${DASHBOARD_PORT:-8771}:8768"
     env_file:
       - .env
     environment:
@@ -32,8 +32,10 @@ services:
 
   version-watcher:
     build: .
-    image: codepug-control:v0.7.0-dev
-    container_name: ${CODEPUG_WATCHER_NAME:-codepug-version-watcher-v07}
+    # Use a separate image tag to avoid two parallel BuildKit exporters
+    # writing the same image tag during docker compose up --build.
+    image: codepug-console-watcher:preview
+    container_name: ${CODEPUG_WATCHER_NAME:-codepug-console-watcher}
     restart: unless-stopped
     init: true
     command: ["python", "-m", "dashboard.watch_updates"]

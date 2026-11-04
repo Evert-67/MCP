@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from .diagnostics import build_diagnosis
 from .recovery import build_recovery_overview, build_recovery_plan
 from .health import build_health_overview
+from .incidents import build_incidents
 from .risk import LEVELS, classify, chosen_risk, effective_risk, permitted_mode
 from .updates import check_image_update
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
@@ -286,7 +287,35 @@ def startup():
 
 @app.get("/")
 def home(_: Annotated[None, Depends(require_admin)]):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/console/overview", status_code=307)
+
+
+@app.get("/legacy")
+def legacy_dashboard(_: Annotated[None, Depends(require_admin)]):
+    """Keep original long dashboard only as a compatibility path."""
     return FileResponse(ROOT / "templates" / "index.html")
+
+
+CONSOLE_PAGES = frozenset({
+    "overview", "servers", "incidents", "updates",
+    "recovery", "assistant", "settings"
+})
+
+
+@app.get("/console")
+def console_home(_: Annotated[None, Depends(require_admin)]):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/console/overview", status_code=307)
+
+
+@app.get("/console/{page}")
+def console_page(page: str, _: Annotated[None, Depends(require_admin)]):
+    """Modular read-only console; page names are explicitly allowlisted."""
+    if page not in CONSOLE_PAGES:
+        raise HTTPException(404, "Pagina niet gevonden")
+    return FileResponse(ROOT / "templates" / "console.html",
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/state")
@@ -310,6 +339,12 @@ def api_diagnostics(service_key: str = Query(min_length=3, max_length=240),
     if host is None:
         raise HTTPException(404, "Host niet gevonden")
     return build_diagnosis(item, host)
+
+
+@app.get("/api/incidents")
+def api_incidents(_: Annotated[None, Depends(require_admin)]):
+    """Read-only correlated symptoms, not a proof of common root cause."""
+    return build_incidents(build_state())
 
 
 @app.get("/api/health/overview")
