@@ -64,7 +64,7 @@ def result_unknown(image: str, reason: str, status: str = "unsupported") -> dict
             "current_tag": None, "candidate_tag": None,
             "candidate_image": None, "source": None,
             "checked_pages": 0, "complete": False,
-            "note": reason, "execution_enabled": False, "checker_rev": 2}
+            "note": reason, "execution_enabled": False, "checker_rev": 3}
 
 
 def check_public_docker_hub(image: str, fetch=None) -> dict:
@@ -140,7 +140,7 @@ def check_public_docker_hub(image: str, fetch=None) -> dict:
         "complete": complete,
         "note": note,
         "execution_enabled": False,
-        "checker_rev": 2,
+        "checker_rev": 3,
     }
 
 
@@ -247,7 +247,7 @@ def check_known_software_release(image: str, installed_version: str | None = Non
         "release_url": f"https://github.com/{repository}/releases/tag/{release}",
         "checked_pages": 1,
         "complete": True,
-        "checker_rev": 2,
+        "checker_rev": 3,
         "execution_enabled": False,
         "note": note,
     }
