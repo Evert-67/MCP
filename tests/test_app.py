@@ -101,7 +101,7 @@ class WebTests(unittest.TestCase):
             self.assertEqual(client.post("/api/updates/check",json=check_body).status_code,401)
             self.assertEqual(client.post("/api/updates/check",auth=auth,
                 json=check_body).status_code,403)
-            with patch("dashboard.app.check_public_docker_hub",
+            with patch("dashboard.app.check_image_update",
                 return_value={"status":"candidate","current_image":"redis:7.2.4",
                               "candidate_tag":"7.4.2","execution_enabled":False}):
                 checked=client.post("/api/updates/check",auth=auth,
