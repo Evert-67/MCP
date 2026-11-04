@@ -55,6 +55,34 @@ best-effort tagvergelijking tegen de **publieke Docker Hub API**:
 - **Niet gecontroleerd** en **Niet ondersteund** blijven expliciet zichtbaar.
   Als de taglijst niet volledig kon worden doorzocht wordt dat vermeld.
 
+### Softwareversie vs image-tag (correctie na test met Homarr)
+
+De oorspronkelijke Docker Hub tagvergelijker kon `alpine:3.20` onjuist
+vergelijken met een datumtag als `20260805`. CodePug vergelijkt die
+verschillende nummeringssystemen nu **niet meer**. Oude controle-uitkomsten
+worden ongeldig gemaakt en na een nieuwe scan opnieuw beoordeeld.
+
+Er is nu een **eerste applicatie-releaseprovider voor Homarr**:
+
+- Voor `ghcr.io/homarr-labs/homarr:latest` vraagt CodePug, uitsluitend
+  na ingeschakelde automatische controle of handmatige klik, de officiële
+  GitHub-release van `homarr-labs/homarr` op.
+- Is de geïnstalleerde applicatieversie **onbekend**, dan verschijnt
+  **Software-release gevonden, huidige versie onbekend**. Het telt niet als
+  bevestigde update. Een Docker `:latest`-tag is geen versiebewijs.
+- Wanneer een gekoppelde hostagent een geldige OCI-versielabel
+  `org.opencontainers.image.version` terugstuurt, kan CodePug de
+  geïnstalleerde en nieuwste Homarr-versies vergelijken. Sommige images
+  hebben dit label niet.
+- Een recente GitHub-release is niet hetzelfde als een al beschikbare,
+  compatibele GHCR-image. Geen pull, deploy of restart wordt uitgevoerd.
+- De bestaande lokale v0.4 MCP-snapshot bevat alleen image en status;
+  CodePug kan daaruit **geen** actuele Homarr-applicatieversie of image-digest
+  afleiden. Voor bevestiging van een update moet die bewijslijn nog worden
+  uitgebreid met lokale inspectie + registry-digestvergelijking.
+- Voor andere `ghcr.io`-images zijn nog geen officiële releaseproviders
+  geconfigureerd. CodePug meldt expliciet onbekend of niet ondersteund.
+
 ### Achtergrondversiecontrole (nieuwe functionele mijlpaal)
 
 Een **afzonderlijke version-watcher-container** draait onafhankelijk van de browser,
