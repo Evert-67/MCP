@@ -126,7 +126,8 @@ class WebTests(unittest.TestCase):
             self.assertIn('settings',state)
             self.assertIn('agents',state)
             data={'refresh_seconds':30,'offline_after_seconds':600,
-                  'alerts_enabled':True,'notify_unhealthy':False}
+                  'alerts_enabled':True,'notify_unhealthy':False,
+                  'auto_version_checks':False,'version_check_interval_hours':24}
             r=client.post('/api/settings',auth=auth,json=data)
             self.assertEqual(r.status_code,403)
             r=client.post('/api/settings',auth=auth,json=data,
