@@ -119,6 +119,59 @@ def clean_containers(raw):
     return result
 
 
+def clean_host_health(raw):
+    """Schema-bound host evidence, no credentials, shell output or logs."""
+    if not isinstance(raw, dict):
+        return None
+    linux = raw.get("linux") if isinstance(raw.get("linux"), dict) else {}
+    docker = raw.get("docker") if isinstance(raw.get("docker"), dict) else {}
+    checks = raw.get("app_checks") if isinstance(raw.get("app_checks"), list) else []
+    def text(field, source, length=100):
+        return str(source.get(field) or "")[:length]
+    def boolean(field, source):
+        return source.get(field) if type(source.get(field)) is bool else None
+    def integer(field, source, maximum=100_000):
+        v = source.get(field)
+        return v if type(v) is int and 0 <= v <= maximum else None
+    linux_clean = {
+        "scan_status": text("scan_status", linux, 20),
+        "distro": text("distro", linux, 32),
+        "version": text("version", linux, 32),
+        "pretty_name": text("pretty_name", linux, 100),
+        "kernel": text("kernel", linux, 64),
+        "system_state": text("system_state", linux, 20),
+        "reboot_required": boolean("reboot_required", linux),
+        "package_cache_status": text("package_cache_status", linux, 20),
+        "updates_available": integer("updates_available", linux),
+        "security_updates_lower_bound": integer("security_updates_lower_bound", linux),
+    }
+    docker_clean = {
+        "scan_status": text("scan_status", docker, 20),
+        "daemon_active": boolean("daemon_active", docker),
+        "server_version": text("server_version", docker, 64),
+        "client_version": text("client_version", docker, 64),
+        "compose_version": text("compose_version", docker, 64),
+        "engine_latest_verified": False,  # Never claim "latest" from local version alone.
+    }
+    app_checks = []
+    for item in checks[:24]:
+        if not isinstance(item, dict):
+            continue
+        status = text("status", item, 20)
+        if status not in ("reachable", "auth_required", "unreachable", "error", "review", "unknown"):
+            status = "unknown"
+        app_checks.append({
+            "id": text("id", item, 48),
+            "name": text("name", item, 80),
+            "status": status,
+            "http_status": integer("http_status", item, 599),
+            "latency_ms": integer("latency_ms", item, 10_000),
+            "source": "loopback-http",
+        })
+    return {"linux": linux_clean, "docker": docker_clean,
+            "app_checks": app_checks}
+
+
 def parse_timestamp(value):
     try:
         d = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
@@ -158,7 +211,8 @@ def build_state():
                         "collected_at":rep["collected_at"] if rep else None,
                         "memory":payload.get("memory",{}),"disk_root":payload.get("disk_root",{}),
                         "platform":payload.get("platform","unknown"),
-                        "capabilities":payload.get("capabilities",[])})
+                        "capabilities":payload.get("capabilities",[]),
+                        "host_health":clean_host_health(payload.get("host_health"))})
         for c in clean_containers(payload.get("containers", [])):
             services.append((a["id"], c))
     out = []
@@ -336,6 +390,7 @@ async def ingest(agent_id: str, request: Request):
     report = {"collected_at":collected, "containers":clean_containers(payload.get("containers",[])),
               "memory":payload.get("memory",{}), "disk_root":payload.get("disk_root",{}),
               "platform":str(payload.get("platform") or "unknown")[:32],
+              "host_health":clean_host_health(payload.get("host_health")),
               "capabilities":[c for c in payload.get("capabilities",[]) if isinstance(c,str)][:16]
                             if isinstance(payload.get("capabilities",[]),list) else []}
     save_report(agent_id, report)
