@@ -1,4 +1,4 @@
-"""Risk classification: explicit policy cannot lower built-in hard safety floors."""
+"""Risk classification: user-visible priority can differ from hard safety floor."""
 from __future__ import annotations
 
 LEVELS = ("low", "medium", "high", "critical")
@@ -44,8 +44,13 @@ def effective_risk(minimum: str, requested: str | None) -> str:
     return LEVELS[max(LEVELS.index(minimum), LEVELS.index(requested))]
 
 
+def chosen_risk(minimum: str, requested: str | None) -> str:
+    """User-chosen operational priority; never used to grant execution rights."""
+    return requested if requested in LEVELS else minimum
+
+
 def permitted_mode(mode: str, minimum: str) -> bool:
-    # v0.5 is monitoring/configuration only: 'auto' records intent, no executor.
+    # Config-only: 'auto' is intent, never execution. Caller passes HARD safety floor.
     if mode not in ("monitor", "approve", "auto"):
         return False
     return not (mode == "auto" and minimum != "low")

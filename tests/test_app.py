@@ -46,6 +46,107 @@ class WebTests(unittest.TestCase):
             self.assertEqual(client.get('/api/diagnostics?service_key=local%2Fmissing',
                                         auth=('admin','test-password-not-for-use')).status_code, 404)
 
+    def test_recovery_endpoints_authenticated_and_non_executable(self):
+        from unittest.mock import patch
+        sample = {
+            "services": [{
+                "key": "local/db", "server_id": "local", "name": "db",
+                "status": "Up", "state": "running", "risk": "critical",
+                "notes": "SHOULD-NOT-BE-EXPORTED"
+            }],
+            "servers": [{"id":"local","label":"Host","online":True,"age_seconds":15}]
+        }
+        with TestClient(app) as client, patch("dashboard.app.build_state", return_value=sample):
+            auth = ("admin","test-password-not-for-use")
+            self.assertEqual(client.get("/api/recovery/overview").status_code,401)
+            overview=client.get("/api/recovery/overview",auth=auth)
+            self.assertEqual(overview.status_code,200,overview.text)
+            self.assertFalse(overview.json()["execution_enabled"])
+            self.assertIsNone(overview.json()["verified_backup_count"])
+            self.assertEqual(overview.json()["hosts"][0]["backup_status"],"unknown")
+            plan=client.get("/api/recovery/plan?service_key=local%2Fdb",auth=auth)
+            self.assertEqual(plan.status_code,200,plan.text)
+            self.assertFalse(plan.json()["backup_verified"])
+            self.assertFalse(plan.json()["execution_enabled"])
+            self.assertNotIn("SHOULD-NOT-BE-EXPORTED",str(plan.json()))
+            self.assertEqual(client.get("/api/recovery/plan?service_key=local%2Fmissing",
+                                auth=auth).status_code,404)
+
+    def test_manual_low_priority_and_update_check_are_separate(self):
+        from unittest.mock import patch
+        sample={
+            "services":[{
+                "key":"local/codepug-test","server_id":"local",
+                "name":"codepug-test","image":"redis:7.2.4",
+                "minimum_risk":"high","risk":"high","mode":"monitor",
+                "status":"exited","state":"exited","notes":""
+            }],
+            "servers":[{"id":"local","label":"Host","online":True,"age_seconds":12}]
+        }
+        with TestClient(app) as client, patch("dashboard.app.build_state",return_value=sample):
+            auth=("admin","test-password-not-for-use")
+            headers={"x-codepug-request":"1"}
+            url="/api/policies"
+            body={"service_key":"local/codepug-test","risk_override":"low",
+                  "mode":"approve","notes":"only test"}
+            result=client.post(url,auth=auth,json=body,headers=headers)
+            self.assertEqual(result.status_code,200,result.text)
+            self.assertEqual(result.json()["risk"],"low")
+            self.assertEqual(result.json()["safety_risk"],"high")
+            self.assertFalse(result.json()["execution_enabled"])
+            rejected=client.post(url,auth=auth,headers=headers,
+                json={**body,"mode":"auto"})
+            self.assertEqual(rejected.status_code,422)
+            check_body={"service_key":"local/codepug-test"}
+            self.assertEqual(client.post("/api/updates/check",json=check_body).status_code,401)
+            self.assertEqual(client.post("/api/updates/check",auth=auth,
+                json=check_body).status_code,403)
+            with patch("dashboard.app.check_image_update",
+                return_value={"status":"candidate","current_image":"redis:7.2.4",
+                              "candidate_tag":"7.4.2","execution_enabled":False}):
+                checked=client.post("/api/updates/check",auth=auth,
+                    headers=headers,json=check_body)
+            self.assertEqual(checked.status_code,200,checked.text)
+            self.assertEqual(checked.json()["candidate_tag"],"7.4.2")
+            self.assertFalse(checked.json()["execution_enabled"])
+
+    def test_infrastructure_health_requires_auth_and_preserves_uncertainty(self):
+        from unittest.mock import patch
+        state={
+            "servers":[{"id":"local","label":"Ubuntu host","online":True}],
+            "services":[{"key":"local/demo","name":"demo","server_id":"local",
+                         "status":"Up","state":"running","update":{"status":"not_checked"}}]
+        }
+        with TestClient(app) as client, patch("dashboard.app.build_state",return_value=state):
+            self.assertEqual(client.get("/api/health/overview").status_code,401)
+            result=client.get("/api/health/overview",
+                              auth=("admin","test-password-not-for-use"))
+            self.assertEqual(result.status_code,200,result.text)
+            data=result.json()
+            self.assertTrue(data["read_only"])
+            self.assertFalse(data["execution_enabled"])
+            self.assertEqual(data["summary"]["hosts_with_deep_evidence"],0)
+            self.assertFalse(data["hosts"][0]["fully_verified"])
+
+    def test_host_health_ingest_never_copies_arbitrary_agent_secrets(self):
+        from dashboard.app import clean_host_health
+        sample={
+            "api_key":"TOP_SECRET_NOT_FOR_UI",
+            "linux":{"pretty_name":"Ubuntu 22.04.5 LTS",
+                     "updates_available":17,"shell_history":"PRIVATE_HISTORY"},
+            "docker":{"daemon_active":True,"server_version":"29.0.0",
+                      "environment":{"PASSWORD":"SECRET"},
+                      "apt_pending_packages":["docker-ce","private-something"]},
+            "app_checks":[{"name":"Sonarr","id":"sonarr","status":"unreachable",
+                           "http_status":None,"response_body":"TOKEN_123"}],
+        }
+        clean=clean_host_health(sample)
+        self.assertIn("Ubuntu 22.04.5",str(clean))
+        for secret in ("TOP_SECRET_NOT_FOR_UI","PRIVATE_HISTORY",
+                       "PASSWORD","TOKEN_123","private-something"):
+            self.assertNotIn(secret,str(clean))
+        self.assertEqual(clean["docker"]["apt_pending_packages"],["docker-ce"])
+
     def test_agent_flow(self):
         with TestClient(app) as client:
             auth=('admin','test-password-not-for-use')
@@ -62,7 +163,8 @@ class WebTests(unittest.TestCase):
             self.assertIn('settings',state)
             self.assertIn('agents',state)
             data={'refresh_seconds':30,'offline_after_seconds':600,
-                  'alerts_enabled':True,'notify_unhealthy':False}
+                  'alerts_enabled':True,'notify_unhealthy':False,
+                  'auto_version_checks':False,'version_check_interval_hours':24}
             r=client.post('/api/settings',auth=auth,json=data)
             self.assertEqual(r.status_code,403)
             r=client.post('/api/settings',auth=auth,json=data,

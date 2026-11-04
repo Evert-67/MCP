@@ -1,9 +1,10 @@
-"""CodePug Control Center v0.5: observation and policy editing, no update execution."""
+"""CodePug Server Control v0.7: read-only monitoring and recovery planning."""
 from __future__ import annotations
 import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -15,10 +16,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .diagnostics import build_diagnosis
-from .risk import LEVELS, classify, effective_risk, permitted_mode
+from .recovery import build_recovery_overview, build_recovery_plan
+from .health import build_health_overview
+from .risk import LEVELS, classify, chosen_risk, effective_risk, permitted_mode
+from .updates import check_image_update
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
                       new_agent, put_policy, recent_events, save_report,
-                      get_settings, put_settings, update_agent, delete_agent)
+                      get_settings, put_settings, update_agent, delete_agent,
+                      all_update_checks, save_update_check)
 
 ROOT = Path(__file__).resolve().parent
 HOST_SNAPSHOT = Path(os.getenv("HOST_SNAPSHOT", "/host-snapshot/status.json"))
@@ -64,6 +69,10 @@ class PolicyIn(BaseModel):
     notes: str = Field(default="", max_length=500)
 
 
+class UpdateCheckIn(BaseModel):
+    service_key: str = Field(min_length=3, max_length=240)
+
+
 class AgentIn(BaseModel):
     label: str = Field(min_length=2, max_length=80)
 
@@ -78,6 +87,8 @@ class DashboardSettingsIn(BaseModel):
     offline_after_seconds: int = Field(ge=120, le=7200)
     alerts_enabled: bool
     notify_unhealthy: bool
+    auto_version_checks: bool = False
+    version_check_interval_hours: int = Field(default=24, ge=6, le=168)
 
 
 def clean_containers(raw):
@@ -90,7 +101,13 @@ def clean_containers(raw):
         name = str(item.get("name") or item.get("Names") or "")[:120]
         if not name:
             continue
+        reported_version = item.get("software_version") or ""
+        # Only accept a constrained version, never arbitrary image labels/notes.
+        reported_version = str(reported_version)[:40]
+        if not re.fullmatch(r"v?\d{1,3}\.\d{1,3}(?:\.\d{1,4})?", reported_version):
+            reported_version = ""
         result.append({
+            "software_version": reported_version,
             "name": name,
             "image": str(item.get("image") or item.get("Image") or "")[:240],
             "status": str(item.get("status") or item.get("Status") or "")[:140],
@@ -101,6 +118,66 @@ def clean_containers(raw):
             "persistent": item.get("persistent") is True,
         })
     return result
+
+
+def clean_host_health(raw):
+    """Schema-bound host evidence, no credentials, shell output or logs."""
+    if not isinstance(raw, dict):
+        return None
+    linux = raw.get("linux") if isinstance(raw.get("linux"), dict) else {}
+    docker = raw.get("docker") if isinstance(raw.get("docker"), dict) else {}
+    checks = raw.get("app_checks") if isinstance(raw.get("app_checks"), list) else []
+    def text(field, source, length=100):
+        return str(source.get(field) or "")[:length]
+    def boolean(field, source):
+        return source.get(field) if type(source.get(field)) is bool else None
+    def integer(field, source, maximum=100_000):
+        v = source.get(field)
+        return v if type(v) is int and 0 <= v <= maximum else None
+    linux_clean = {
+        "scan_status": text("scan_status", linux, 20),
+        "distro": text("distro", linux, 32),
+        "version": text("version", linux, 32),
+        "pretty_name": text("pretty_name", linux, 100),
+        "kernel": text("kernel", linux, 64),
+        "system_state": text("system_state", linux, 20),
+        "reboot_required": boolean("reboot_required", linux),
+        "package_cache_status": text("package_cache_status", linux, 20),
+        "updates_available": integer("updates_available", linux),
+        "security_updates_lower_bound": integer("security_updates_lower_bound", linux),
+    }
+    docker_clean = {
+        "scan_status": text("scan_status", docker, 20),
+        "daemon_active": boolean("daemon_active", docker),
+        "server_version": text("server_version", docker, 64),
+        "client_version": text("client_version", docker, 64),
+        "compose_version": text("compose_version", docker, 64),
+        "engine_latest_verified": False,  # Never claim "latest" from local version alone.
+        "package_cache_status": text("package_cache_status", docker, 20),
+        "apt_package_update_available": boolean("apt_package_update_available", docker),
+        "apt_pending_packages": [str(name)[:40] for name in
+                                 (docker.get("apt_pending_packages") or [])[:5]
+                                 if isinstance(name, str) and name in (
+                                     "docker-ce", "docker-ce-cli",
+                                     "docker-compose-plugin", "docker.io", "containerd.io")],
+    }
+    app_checks = []
+    for item in checks[:24]:
+        if not isinstance(item, dict):
+            continue
+        status = text("status", item, 20)
+        if status not in ("reachable", "auth_required", "unreachable", "error", "review", "unknown"):
+            status = "unknown"
+        app_checks.append({
+            "id": text("id", item, 48),
+            "name": text("name", item, 80),
+            "status": status,
+            "http_status": integer("http_status", item, 599),
+            "latency_ms": integer("latency_ms", item, 10_000),
+            "source": "loopback-http",
+        })
+    return {"linux": linux_clean, "docker": docker_clean,
+            "app_checks": app_checks}
 
 
 def parse_timestamp(value):
@@ -120,6 +197,7 @@ def build_state():
     settings = get_settings()
     reports = all_reports()
     policies = all_policies()
+    update_checks = all_update_checks()
     servers, services = [], []
     # Local snapshot from the existing v0.4 MCP collector.
     if HOST_SNAPSHOT.is_file():
@@ -141,7 +219,8 @@ def build_state():
                         "collected_at":rep["collected_at"] if rep else None,
                         "memory":payload.get("memory",{}),"disk_root":payload.get("disk_root",{}),
                         "platform":payload.get("platform","unknown"),
-                        "capabilities":payload.get("capabilities",[])})
+                        "capabilities":payload.get("capabilities",[]),
+                        "host_health":clean_host_health(payload.get("host_health"))})
         for c in clean_containers(payload.get("containers", [])):
             services.append((a["id"], c))
     out = []
@@ -150,13 +229,40 @@ def build_state():
         key = f"{server_id}/{c['name']}"
         inherent = classify(c)
         setting = policies.get(key, {})
-        risk = effective_risk(inherent["minimum"], setting.get("risk_override"))
+        risk = chosen_risk(inherent["minimum"], setting.get("risk_override"))
+        safety_risk = effective_risk(inherent["minimum"], setting.get("risk_override"))
         mode = setting.get("mode", "monitor")
-        if not permitted_mode(mode, risk):
-            mode = "monitor"  # Always fail closed after risk increases.
+        if not permitted_mode(mode, safety_risk):
+            mode = "monitor"  # Manual lower priority never relaxes safety restrictions.
+        last_check = update_checks.get(key)
+        if last_check and last_check["image_ref"] == c["image"]:
+            try:
+                saved = json.loads(last_check["payload"])
+                # Invalidate legacy cross-version tag comparisons and results
+                # based on a different installed application version.
+                valid = (saved.get("checker_rev") == 3 and
+                         (saved.get("current_software_version") or None) ==
+                         (c["software_version"] or None))
+                if valid:
+                    update = {
+                        "status": str(saved.get("status", "unknown"))[:30],
+                        "candidate_tag": str(saved.get("candidate_tag") or "")[:80],
+                        "latest_release": str(saved.get("latest_release") or "")[:80],
+                        "current_software_version": c["software_version"],
+                        "note": str(saved.get("note") or "")[:500],
+                        "source": str(saved.get("source") or "")[:60],
+                        "checked_at": last_check["checked_at"],
+                    }
+                else:
+                    update = {"status": "not_checked"}
+            except (ValueError, TypeError, AttributeError):
+                update = {"status": "not_checked"}
+        else:
+            update = {"status": "not_checked"}
         out.append({**c, "key":key, "server_id":server_id, "risk":risk,
+                    "safety_risk":safety_risk, "risk_override":setting.get("risk_override"),
                     "minimum_risk":inherent["minimum"],"risk_reasons":inherent["reasons"],
-                    "mode":mode,"notes":setting.get("notes", "")})
+                    "mode":mode,"notes":setting.get("notes", ""), "update":update})
     for s in servers:
         try:
             d = datetime.fromisoformat(str(s.get("collected_at", "")).replace("Z", "+00:00"))
@@ -165,7 +271,7 @@ def build_state():
             s["age_seconds"] = None
         s["online"] = s["age_seconds"] is not None and s["age_seconds"] < settings["offline_after_seconds"]
         s["container_count"] = sum(1 for a in out if a["server_id"] == s["id"])
-    return {"version":"0.6.0-dev", "servers":servers, "services":out,
+    return {"version":"0.7.0-dev", "servers":servers, "services":out,
             "settings":settings, "agents":agents,
             "events":recent_events(20), "execution_enabled":False,
             "note":"Updatebeleid wordt opgeslagen; deze versie voert geen updates uit."}
@@ -206,6 +312,34 @@ def api_diagnostics(service_key: str = Query(min_length=3, max_length=240),
     return build_diagnosis(item, host)
 
 
+@app.get("/api/health/overview")
+def api_health_overview(_: Annotated[None, Depends(require_admin)]):
+    """Cross-layer Linux, Docker and application findings; read-only."""
+    return build_health_overview(build_state())
+
+
+@app.get("/api/recovery/overview")
+def api_recovery_overview(_: Annotated[None, Depends(require_admin)]):
+    """Inventory-based visibility only: no backup provider has been connected."""
+    return build_recovery_overview(build_state())
+
+
+@app.get("/api/recovery/plan")
+def api_recovery_plan(
+    service_key: str = Query(min_length=3, max_length=240),
+    _: Annotated[None, Depends(require_admin)] = None
+):
+    """Plan manual recovery of a visible service without executing anything."""
+    state = build_state()
+    service = next((s for s in state["services"] if s["key"] == service_key), None)
+    if service is None:
+        raise HTTPException(404, "Dienst niet gevonden")
+    host = next((h for h in state["servers"] if h["id"] == service["server_id"]), None)
+    if host is None:
+        raise HTTPException(404, "Host niet gevonden")
+    return build_recovery_plan(service, host)
+
+
 @app.post("/api/policies")
 def api_policy(form: PolicyIn, request: Request, _: Annotated[None, Depends(require_admin)]):
     guard_mutation(request)
@@ -215,11 +349,29 @@ def api_policy(form: PolicyIn, request: Request, _: Annotated[None, Depends(requ
         raise HTTPException(404, "Dienst niet gevonden")
     if form.risk_override not in (None, *LEVELS):
         raise HTTPException(422, "Ongeldig risiconiveau")
-    selected = effective_risk(item["minimum_risk"], form.risk_override)
-    if not permitted_mode(form.mode, selected):
-        raise HTTPException(422, "Automatisch bijwerken alleen voor laag risico; uitvoering bovendien uitgeschakeld")
-    put_policy(form.service_key, selected, form.mode, form.notes)
-    return {"saved":True, "effective_risk":selected, "execution_enabled":False}
+    selected = chosen_risk(item["minimum_risk"], form.risk_override)
+    safety = effective_risk(item["minimum_risk"], form.risk_override)
+    if not permitted_mode(form.mode, safety):
+        raise HTTPException(422, "Automatische modus niet toegestaan bij hogere veiligheidsrisico's")
+    put_policy(form.service_key, form.risk_override, form.mode, form.notes)
+    return {"saved":True, "risk":selected, "safety_risk":safety,
+            "execution_enabled":False}
+
+
+@app.post("/api/updates/check")
+def api_check_update(
+    form: UpdateCheckIn, request: Request,
+    _: Annotated[None, Depends(require_admin)]
+):
+    """Opt-in public Docker Hub lookup: no Docker, no shell, no update execution."""
+    guard_mutation(request)
+    state = build_state()
+    service = next((s for s in state["services"] if s["key"] == form.service_key), None)
+    if service is None:
+        raise HTTPException(404, "Dienst niet gevonden")
+    result = check_image_update(service["image"], service.get("software_version") or None)
+    save_update_check(form.service_key, service["image"], result)
+    return result
 
 
 @app.post("/api/agents")
@@ -252,6 +404,7 @@ async def ingest(agent_id: str, request: Request):
     report = {"collected_at":collected, "containers":clean_containers(payload.get("containers",[])),
               "memory":payload.get("memory",{}), "disk_root":payload.get("disk_root",{}),
               "platform":str(payload.get("platform") or "unknown")[:32],
+              "host_health":clean_host_health(payload.get("host_health")),
               "capabilities":[c for c in payload.get("capabilities",[]) if isinstance(c,str)][:16]
                             if isinstance(payload.get("capabilities",[]),list) else []}
     save_report(agent_id, report)

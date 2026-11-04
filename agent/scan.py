@@ -8,12 +8,19 @@ No environment variables, labels values, secret files or container logs are sent
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
+
+# Support both `python agent/scan.py` and importing as a package in tests.
+if __package__:
+    from .health import collect_host_health
+else:
+    from health import collect_host_health
 
 
 def docker(*args):
@@ -32,7 +39,13 @@ def scan():
         state_name = state.get("Status", "unknown")
         labels = d.get("Config", {}).get("Labels") or {}
         mounts = d.get("Mounts") or []
+        # Read only OCI image-version metadata already exposed by docker inspect.
+        # Never forward arbitrary labels or environment variables.
+        software_version = str(labels.get("org.opencontainers.image.version") or "")[:40]
+        if not re.fullmatch(r"v?\d{1,3}\.\d{1,3}(?:\.\d{1,4})?", software_version):
+            software_version = ""
         records.append({
+            "software_version": software_version,
             "name": str(d.get("Name", "")).lstrip("/"),
             "image": d.get("Config", {}).get("Image", ""),
             "status": f"{state_name}{' (unhealthy)' if health == 'unhealthy' else ''}",
@@ -59,7 +72,9 @@ def scan():
         disk_root = {}
     return {"collected_at":datetime.now(timezone.utc).isoformat(),
             "platform":platform.system().lower(),
-            "capabilities":["docker-inventory"], "containers":records,
+            "capabilities":["docker-inventory", "host-health", "local-app-probes"],
+            "containers":records,
+            "host_health":collect_host_health(),
             "memory":memory, "disk_root":disk_root}
 
 

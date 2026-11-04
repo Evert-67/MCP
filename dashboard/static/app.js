@@ -8,21 +8,114 @@ function popup(title,html){$('modal-title').textContent=title;$('modal-content')
 function close(){ $('overlay').hidden=true }
 function toast(text){let t=$('toast');t.textContent=text;t.hidden=false;setTimeout(()=>t.hidden=true,4500)}
 async function request(url,options={}){const r=await fetch(url,{credentials:'same-origin',...options});const p=await r.json().catch(()=>({}));if(!r.ok)throw Error(p.detail||`HTTP ${r.status}`);return p}
+const versionLabel=c=>{
+  const u=c.update||{};
+  if(u.status==='candidate')return (u.source?.includes('GitHub')?'Nieuwere software: ':'Nieuwe image-tag: ')+(u.candidate_tag||'?');
+  if(u.status==='release_found')return 'Software-release '+(u.latest_release||'?')+' · huidige versie onbekend';
+  if(u.status==='no_newer_found')return 'Geen nieuwere versie gevonden';
+  if(u.status==='incomplete')return 'Controle onvolledig';
+  if(u.status==='unsupported')return 'Niet ondersteund';
+  if(u.status==='check_failed')return 'Controle mislukt';
+  return 'Niet gecontroleerd';
+};
+const versionSummary=c=>{
+  const u=c.update||{};
+  return versionLabel(c)+(u.checked_at?' · '+u.checked_at.slice(0,16).replace('T',' '):'');
+};
 const running=c=>c.state==='running'||/^up\b/i.test(c.status);
 function render(){const s=model.services||[], hosts=model.servers||[];
 $('m-servers').textContent=hosts.length;$('m-online').textContent=t('{count} online',{count:hosts.filter(x=>x.online).length});$('m-containers').textContent=s.length;$('nav-count').textContent=s.length;
 $('m-running').textContent=t('{count} actief',{count:s.filter(running).length});$('m-stopped').textContent=t('{count} gestopt',{count:s.filter(x=>!running(x)).length});$('m-alerts').textContent=s.filter(x=>!running(x)||/unhealthy/i.test(x.status)).length;
+$('m-updates').textContent=s.filter(x=>x.update?.status==='candidate').length;
+const unknownReleases=s.filter(x=>x.update?.status==='release_found').length;
+$('m-updates-scan').textContent=model.settings?.auto_version_checks?
+    'Achtergrondscan aan · elke '+(model.settings?.version_check_interval_hours||24)+' uur':
+    'Achtergrondscan uitgeschakeld';
+if(unknownReleases)$('m-updates-scan').textContent+=
+    ' · '+unknownReleases+' release(s), geïnstalleerde versie onbekend';
 const newest=hosts.filter(x=>x.age_seconds!=null).sort((a,b)=>a.age_seconds-b.age_seconds)[0];$('updated').textContent=newest?t('Laatste meting {seconds}s geleden',{seconds:newest.age_seconds}):'Nog geen metingen';
 $('server-list').innerHTML=hosts.length?hosts.map(x=>`<div class="server-card"><div class="server-header"><div class="server-icon"><i class="bi ${x.type==='local'?'bi-pc-display':'bi-hdd-network'}"></i></div><div><strong>${esc(x.label)}</strong><small>${x.type==='local'?'Lokale snapshot':'Externe agent'}</small></div><span class="server-status ${x.online?'':'offline'}">${x.online?'● Online':'● Offline'}</span></div><div class="server-details"><div><span>Containers</span><strong>${x.container_count}</strong></div><div><span>Vrije RAM</span><strong>${x.memory?.available_bytes?(x.memory.available_bytes/1e9).toFixed(1)+' GB':'—'}</strong></div><div><span>Laatste scan</span><strong>${x.age_seconds!=null?x.age_seconds+'s':'—'}</strong></div></div></div>`).join(''):'<div class="loading">Nog geen servers gevonden. Controleer de snapshot of voeg een agent toe.</div>';
 const old=$('filter-server').value;$('filter-server').innerHTML='<option value="">Alle servers</option>'+hosts.map(x=>`<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('');$('filter-server').value=hosts.some(x=>x.id===old)?old:'';
 $('events').innerHTML=model.events?.length?model.events.map(e=>`<div class="event"><div class="event-icon"><i class="bi bi-pencil-square"></i></div><div><strong>${esc(e.kind)}</strong><small>${esc(e.subject)} · ${esc(e.detail)}</small></div><time>${esc(e.time?.slice(11,16))}</time></div>`).join(''):'<div class="loading">Nog geen wijzigingen geregistreerd</div>';
 renderRows();renderSettings();i18n.translate();}
-function renderRows(){let filtered=(model.services||[]).filter(x=>(!$('filter-server').value||x.server_id===$('filter-server').value)&&(!$('filter-status').value||($('filter-status').value==='running'?running(x):!running(x)))&&(!$('filter-risk').value||x.risk===$('filter-risk').value)&&[x.name,x.image,x.project].join(' ').toLowerCase().includes($('search').value.toLowerCase()));
-$('results-count').textContent=t('{count} resultaten',{count:filtered.length});$('service-rows').innerHTML=filtered.length?filtered.map(c=>`<tr data-key="${esc(c.key)}"><td><div class="service-name">${esc(c.name)}</div><div class="service-image">${esc(c.image)}</div></td><td>${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}</td><td><span class="pill ${running(c)?'running':'stopped'}"><span class="risk-mark"></span>${running(c)?t('Actief'):t('Gestopt')}${/unhealthy/i.test(c.status)?' · ongezond':''}</span></td><td><span class="pill ${c.risk}"><span class="risk-mark"></span>${labels[c.risk]}</span></td><td><span class="policy-text">${labels[c.mode]}</span></td><td><button class="edit-btn" title="Beleid bewerken"><i class="bi bi-sliders2"></i></button></td></tr>`).join(''):'<tr><td colspan="6" class="loading">Geen diensten gevonden voor deze filters</td></tr>';
+function renderRows(){let filtered=(model.services||[]).filter(x=>(!$('filter-server').value||x.server_id===$('filter-server').value)&&(!$('filter-status').value||($('filter-status').value==='running'?running(x):!running(x)))&&(!$('filter-risk').value||x.risk===$('filter-risk').value)&&(!$('filter-update').value||(x.update?.status||'not_checked')===$('filter-update').value)&&[x.name,x.image,x.project].join(' ').toLowerCase().includes($('search').value.toLowerCase()));
+$('results-count').textContent=t('{count} resultaten',{count:filtered.length});$('service-rows').innerHTML=filtered.length?filtered.map(c=>`<tr data-key="${esc(c.key)}"><td><div class="service-name">${esc(c.name)}</div><div class="service-image">${esc(c.image)}</div></td><td>${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}</td><td><span class="pill ${running(c)?'running':'stopped'}"><span class="risk-mark"></span>${running(c)?t('Actief'):t('Gestopt')}${/unhealthy/i.test(c.status)?' · ongezond':''}</span></td><td><span class="pill ${c.risk}" title="Automatische veiligheidsinschatting: ${esc(labels[c.minimum_risk])}"><span class="risk-mark"></span>${labels[c.risk]}</span>${c.risk!==c.safety_risk?`<small class="policy-safety-note">Veiligheid: ${labels[c.safety_risk]}</small>`:""}</td><td><span class="policy-text">${esc(versionLabel(c))}</span></td><td><span class="policy-text">${labels[c.mode]}</span></td><td><button class="edit-btn" title="Beleid bewerken"><i class="bi bi-sliders2"></i></button></td></tr>`).join(''):'<tr><td colspan="7" class="loading">Geen diensten gevonden voor deze filters</td></tr>';
 $('service-rows').querySelectorAll('tr[data-key]').forEach(tr=>tr.addEventListener('click',()=>editService(tr.dataset.key)))}
-function editService(key){const c=model.services.find(x=>x.key===key);if(!c)return;let reasons=c.risk_reasons?.length?c.risk_reasons.map(x=>`<div>• ${esc(t(x))}</div>`).join(''):'<div>Geen aanvullende risico-indicatoren</div>';
-popup(t('Risicobeleid ·')+' '+c.name,`<div class="helper">Host: ${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}<br>Minimaal risico: <strong>${labels[c.minimum_risk]}</strong></div><div class="reasons">${reasons}</div><form id="policy-form"><div class="form-row"><label>Risicolaag (nooit lager dan het minimum)</label><select class="form-field" id="risk-value">${['low','medium','high','critical'].map(r=>`<option value="${r}" ${r===c.risk?'selected':''} ${['low','medium','high','critical'].indexOf(r)<['low','medium','high','critical'].indexOf(c.minimum_risk)?'disabled':''}>${labels[r]}</option>`).join('')}</select></div><div class="form-row"><label>Updatebeleid</label><select class="form-field" id="policy-mode"><option value="monitor" ${c.mode==='monitor'?'selected':''}>Alleen volgen</option><option value="approve" ${c.mode==='approve'?'selected':''}>Na goedkeuring</option><option value="auto" ${c.mode==='auto'?'selected':''}>Automatisch (uitsluitend laag risico, uitvoering nog uit)</option></select></div><div class="form-row"><label>Notities</label><textarea class="form-area" id="policy-notes" maxlength="500">${esc(c.notes)}</textarea></div><div class="panel-note"><i class="bi bi-shield-lock"></i> Ook bij 'Automatisch' voert v0.5 geen updates uit. Back-up, healthcheck en uitvoeringsagent moeten eerst worden gevalideerd.</div><div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button class="primary-btn" type="submit">Beleid opslaan</button></div></form>`);
-$('cancel').onclick=close;$('policy-form').onsubmit=async e=>{e.preventDefault();try{await request('/api/policies',{method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},body:JSON.stringify({service_key:key,risk_override:$('risk-value').value,mode:$('policy-mode').value,notes:$('policy-notes').value})});close();toast('Risicobeleid opgeslagen');await reload()}catch(err){toast('Niet opgeslagen: '+err.message)}}}
+function editService(key){
+ const c=model.services.find(x=>x.key===key);if(!c)return;
+ const reasons=c.risk_reasons?.length?c.risk_reasons.map(x=>`<div>• ${esc(t(x))}</div>`).join(''):'<div>Geen aanvullende risico-indicatoren</div>';
+ const userRisk=c.risk_override||'';
+ const automaticDisabled=c.minimum_risk!=='low'?'disabled':'';
+ popup(t('Risicobeleid ·')+' '+c.name,`<div class="helper">Host: ${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}<br>Automatische veiligheidsinschatting: <strong>${labels[c.minimum_risk]}</strong> (blijft gelden voor uitvoeringsrechten)</div>
+ <div class="reasons">${reasons}</div>
+ <form id="policy-form">
+  <div class="form-row"><label>Mijn risicobeoordeling</label><select class="form-field" id="risk-value">
+   <option value="" ${!userRisk?'selected':''}>Automatische inschatting volgen</option>
+   ${['low','medium','high','critical'].map(r=>`<option value="${r}" ${userRisk===r?'selected':''}>${labels[r]}</option>`).join('')}
+  </select><div class="helper">Je kunt Laag kiezen. De veiligheidsinschatting blijft onafhankelijk bestaan; zo wordt nooit automatisch een gevaarlijke update toegestaan.</div></div>
+  <div class="form-row"><label>Versiecontrole</label><div class="helper">Gebruikte image: <strong>${esc(c.image)}</strong></div>
+   <div class="helper">Softwareversie op host: <strong>${esc(c.software_version||'Onbekend (geen versiegegevens in snapshot)')}</strong></div>
+   <div class="helper" id="version-status">${esc(versionSummary(c))}</div>
+   <button type="button" class="secondary-btn" id="version-check"><i class="bi bi-arrow-repeat"></i> Controleer nieuwere versie</button>
+   <div class="helper">De checker gebruikt voor Homarr de officiële GitHub-releases. Voor bepaalde publieke Docker Hub-images worden tags bekeken. Zonder lokale softwareversie kun je de update niet bevestigen. Er wordt niets bijgewerkt.</div>
+  </div>
+  <div class="form-row"><label>Updatebeleid</label><select class="form-field" id="policy-mode">
+   <option value="monitor" ${c.mode==='monitor'?'selected':''}>Alleen volgen</option>
+   <option value="approve" ${c.mode==='approve'?'selected':''}>Na goedkeuring</option>
+   <option id="policy-auto-option" value="auto" ${c.mode==='auto'?'selected':''} ${automaticDisabled}>Automatisch (gepland; alleen veilig laag risico)</option>
+  </select></div>
+  <div class="form-row"><label>Notities</label><textarea class="form-area" id="policy-notes" maxlength="500">${esc(c.notes)}</textarea></div>
+  <div class="panel-note"><i class="bi bi-shield-lock"></i> Risico is niet hetzelfde als updatetoestemming. v0.7 voert geen updates uit: eerst back-up, compatibiliteit, healthcheck en expliciete goedkeuring.</div>
+  <div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button class="primary-btn" type="submit">Beleid opslaan</button></div>
+ </form>`);
+ $('cancel').onclick=close;
+ const syncPolicyMode=()=>{
+   const auto=$('policy-auto-option');
+   auto.disabled=c.minimum_risk!=='low' ||
+     !['','low'].includes($('risk-value').value);
+   if(auto.disabled&&$('policy-mode').value==='auto')$('policy-mode').value='approve';
+ };
+ $('risk-value').onchange=syncPolicyMode;
+ syncPolicyMode();
+ $('version-check').onclick=async ()=>{
+   const button=$('version-check');button.disabled=true;
+   const status=$('version-status');
+   status.textContent='Publieke Docker Hub-tags controleren...';
+   try{
+     const r=await request('/api/updates/check',{
+       method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},
+       body:JSON.stringify({service_key:key})
+     });
+     const label=r.status==='candidate'?
+       'Nieuwere tag gevonden: '+r.candidate_tag:
+       r.status==='release_found'?'Officiële release '+r.latest_release+
+       ' gevonden, geïnstalleerde versie onbekend':
+       r.status==='no_newer_found'?'Geen nieuwere versie gevonden':
+       r.status==='incomplete'?'Controle onvolledig':
+       r.status==='unsupported'?'Niet ondersteund':'Controle mislukt';
+     status.textContent=label+' — '+r.note;
+     const svc=model.services.find(s=>s.key===key);
+     if(svc) svc.update={status:r.status,candidate_tag:r.candidate_tag||'',
+       latest_release:r.latest_release||'',source:r.source||'',note:r.note||'',
+       checked_at:new Date().toISOString()};
+     renderRows();
+   }catch(err){status.textContent='Versiecontrole mislukt: '+err.message}
+   finally{button.disabled=false}
+ };
+ $('policy-form').onsubmit=async e=>{
+   e.preventDefault();
+   try{
+     await request('/api/policies',{
+       method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},
+       body:JSON.stringify({
+         service_key:key,risk_override:$('risk-value').value||null,
+         mode:$('policy-mode').value,notes:$('policy-notes').value
+       })
+     });
+     close();toast('Risicobeleid opgeslagen');await reload();
+   }catch(err){toast('Niet opgeslagen: '+err.message)}
+ };
+}
 function addServer(){popup('Nieuwe server koppelen',`<p class="helper">Maak een agent aan voor je Synology of een andere Linux-server. Je ontvangt een eenmalig token. De agent verstuurt statusgegevens; er is geen inkomende Docker-API nodig.</p><form id="agent-form"><div class="form-row"><label>Herkenbare servernaam</label><input class="form-field" id="agent-name" placeholder="Bijvoorbeeld: Synology NAS" required minlength="2" maxlength="80"></div><div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button type="submit" class="primary-btn">Agent aanmaken</button></div></form>`);$('cancel').onclick=close;$('agent-form').onsubmit=async e=>{e.preventDefault();try{const d=await request('/api/agents',{method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},body:JSON.stringify({label:$('agent-name').value})});popup('Agent aangemaakt',`<p class="helper">Bewaar dit token veilig: het wordt na het sluiten niet opnieuw getoond. Installeer op de andere server <code>agent/scan.py</code> volgens de README.</p><div class="form-row"><label>Agent-ID</label><div class="token-area">${esc(d.id)}</div></div><div class="form-row"><label>Eenmalig toegangstoken</label><div class="token-area">${esc(d.token)}</div></div><div class="panel-note">De agent gebruikt <code>CODEPUG_HUB_URL</code>, <code>CODEPUG_AGENT_ID</code> en een tokenbestand op de server. Gebruik HTTPS/Tailscale.</div><div class="modal-buttons"><button class="secondary-btn" id="close-created">Sluiten</button></div>`);$('close-created').onclick=()=>{close();reload()}}catch(err){toast(err.message)}}}
 async function reload(){
 try{
@@ -34,7 +127,7 @@ try{
   scheduleReload();
 }catch(err){toast('Dashboard kon niet laden: '+err.message)}
 }
-$('refresh').onclick=reload;$('add-server').onclick=addServer;$('add-server-2').onclick=addServer;$('close-modal').onclick=close;$('overlay').onclick=e=>{if(e.target.id==='overlay')close()};$('menu').onclick=()=>$('sidebar').classList.toggle('open');for(const id of ['search','filter-server','filter-status','filter-risk'])$(id).addEventListener(id==='search'?'input':'change',renderRows);
+$('refresh').onclick=reload;$('add-server').onclick=addServer;$('add-server-2').onclick=addServer;$('close-modal').onclick=close;$('overlay').onclick=e=>{if(e.target.id==='overlay')close()};$('menu').onclick=()=>$('sidebar').classList.toggle('open');for(const id of ['search','filter-server','filter-status','filter-risk','filter-update'])$(id).addEventListener(id==='search'?'input':'change',renderRows);
 reload();
 
 // Re-render generated elements on language changes; static text is translated in place.
@@ -69,6 +162,8 @@ function renderSettings(){
     $('settings-offline').value=String(s.offline_after_seconds??300);
     $('settings-alerts').checked=s.alerts_enabled!==false;
     $('settings-unhealthy').checked=s.notify_unhealthy!==false;
+    $('settings-auto-version').checked=s.auto_version_checks===true;
+    $('settings-version-interval').value=String(s.version_check_interval_hours??24);
   }
   $('settings-language').value=i18n.language;
   const a=model.agents||[];
@@ -135,7 +230,9 @@ $('settings-form').onsubmit=async event=>{
         refresh_seconds:Number($('settings-refresh').value),
         offline_after_seconds:Number($('settings-offline').value),
         alerts_enabled:$('settings-alerts').checked,
-        notify_unhealthy:$('settings-unhealthy').checked
+        notify_unhealthy:$('settings-unhealthy').checked,
+        auto_version_checks:$('settings-auto-version').checked,
+        version_check_interval_hours:Number($('settings-version-interval').value)
       })
     });
     toast(t('Instellingen opgeslagen'));await reload();

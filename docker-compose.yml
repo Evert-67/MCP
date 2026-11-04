@@ -1,13 +1,13 @@
-name: ${CODEPUG_PROJECT_NAME:-codepug-control-v06}
+name: ${CODEPUG_PROJECT_NAME:-codepug-control-v07}
 services:
   dashboard:
     build: .
-    image: codepug-control:v0.6.0-dev
-    container_name: ${CODEPUG_CONTAINER_NAME:-codepug-control-v06}
+    image: codepug-control:v0.7.0-dev
+    container_name: ${CODEPUG_CONTAINER_NAME:-codepug-control-v07}
     restart: unless-stopped
     init: true
     ports:
-      - "${BIND_IP:-127.0.0.1}:${DASHBOARD_PORT:-8769}:8768"
+      - "${BIND_IP:-127.0.0.1}:${DASHBOARD_PORT:-8770}:8768"
     env_file:
       - .env
     environment:
@@ -29,3 +29,28 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  version-watcher:
+    build: .
+    image: codepug-control:v0.7.0-dev
+    container_name: ${CODEPUG_WATCHER_NAME:-codepug-version-watcher-v07}
+    restart: unless-stopped
+    init: true
+    command: ["python", "-m", "dashboard.watch_updates"]
+    depends_on:
+      dashboard:
+        condition: service_healthy
+    environment:
+      - CODEPUG_DB=/appdata/codepug.db
+      - HOST_SNAPSHOT=/host-snapshot/status.json
+    volumes:
+      - ./appdata:/appdata:rw
+      - ${HOST_SNAPSHOT_DIR:-./host-data}:/host-snapshot:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64

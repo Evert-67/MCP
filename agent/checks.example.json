@@ -1,0 +1,8 @@
+[
+  {
+    "id": "example-local-app",
+    "name": "Example local app (replace settings)",
+    "port": 8080,
+    "path": "/"
+  }
+]
