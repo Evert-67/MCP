@@ -72,6 +72,44 @@ class WebTests(unittest.TestCase):
             self.assertEqual(client.get("/api/recovery/plan?service_key=local%2Fmissing",
                                 auth=auth).status_code,404)
 
+    def test_manual_low_priority_and_update_check_are_separate(self):
+        from unittest.mock import patch
+        sample={
+            "services":[{
+                "key":"local/codepug-test","server_id":"local",
+                "name":"codepug-test","image":"redis:7.2.4",
+                "minimum_risk":"high","risk":"high","mode":"monitor",
+                "status":"exited","state":"exited","notes":""
+            }],
+            "servers":[{"id":"local","label":"Host","online":True,"age_seconds":12}]
+        }
+        with TestClient(app) as client, patch("dashboard.app.build_state",return_value=sample):
+            auth=("admin","test-password-not-for-use")
+            headers={"x-codepug-request":"1"}
+            url="/api/policies"
+            body={"service_key":"local/codepug-test","risk_override":"low",
+                  "mode":"approve","notes":"only test"}
+            result=client.post(url,auth=auth,json=body,headers=headers)
+            self.assertEqual(result.status_code,200,result.text)
+            self.assertEqual(result.json()["risk"],"low")
+            self.assertEqual(result.json()["safety_risk"],"high")
+            self.assertFalse(result.json()["execution_enabled"])
+            rejected=client.post(url,auth=auth,headers=headers,
+                json={**body,"mode":"auto"})
+            self.assertEqual(rejected.status_code,422)
+            check_body={"service_key":"local/codepug-test"}
+            self.assertEqual(client.post("/api/updates/check",json=check_body).status_code,401)
+            self.assertEqual(client.post("/api/updates/check",auth=auth,
+                json=check_body).status_code,403)
+            with patch("dashboard.app.check_public_docker_hub",
+                return_value={"status":"candidate","current_image":"redis:7.2.4",
+                              "candidate_tag":"7.4.2","execution_enabled":False}):
+                checked=client.post("/api/updates/check",auth=auth,
+                    headers=headers,json=check_body)
+            self.assertEqual(checked.status_code,200,checked.text)
+            self.assertEqual(checked.json()["candidate_tag"],"7.4.2")
+            self.assertFalse(checked.json()["execution_enabled"])
+
     def test_agent_flow(self):
         with TestClient(app) as client:
             auth=('admin','test-password-not-for-use')
