@@ -1,6 +1,7 @@
 """Read-only public registry version checks: never imply installability."""
 import unittest
-from dashboard.updates import reference, tag_key, check_public_docker_hub
+from dashboard.updates import (reference, tag_key, check_public_docker_hub,
+                              check_known_software_release, release_version)
 
 
 class UpdateCheckTests(unittest.TestCase):
@@ -33,6 +34,51 @@ class UpdateCheckTests(unittest.TestCase):
         self.assertEqual(result["candidate_tag"],"7.4.2")
         self.assertFalse(result["execution_enabled"])
         self.assertTrue(result["complete"])
+
+    def test_alpine_semver_not_compared_with_date_tags(self):
+        def fetch(repo, page):
+            self.assertEqual(repo, "library/alpine")
+            return {"next":None, "results":[
+                {"name":"3.20"},{"name":"20260805"},{"name":"3.20.9"},
+                {"name":"3.21.0"}
+            ]}
+        result=check_public_docker_hub("alpine:3.20",fetch=fetch)
+        self.assertEqual(result["status"],"candidate")
+        self.assertEqual(result["candidate_tag"],"3.21.0")
+        self.assertNotEqual(result["candidate_tag"],"20260805")
+
+    def test_homarr_release_not_a_confirmed_update_without_installed_version(self):
+        def fetch(repo):
+            self.assertEqual(repo,"homarr-labs/homarr")
+            return {"tag_name":"v2.11.0"}
+        result=check_known_software_release("ghcr.io/homarr-labs/homarr:latest",
+                                             fetch=fetch)
+        self.assertEqual(result["latest_release"],"v2.11.0")
+        self.assertEqual(result["status"],"release_found")
+        self.assertIsNone(result["candidate_tag"])
+        self.assertFalse(result["execution_enabled"])
+        self.assertIsNone(result["current_software_version"])
+
+    def test_homarr_installed_version_allows_release_comparison(self):
+        fetch=lambda repo:{"tag_name":"v2.11.0"}
+        older=check_known_software_release("ghcr.io/homarr-labs/homarr:latest",
+                                           "v2.10.1",fetch=fetch)
+        self.assertEqual(older["status"],"candidate")
+        self.assertEqual(older["current_software_version"],"v2.10.1")
+        current=check_known_software_release("ghcr.io/homarr-labs/homarr:latest",
+                                             "v2.11.0",fetch=fetch)
+        self.assertEqual(current["status"],"no_newer_found")
+        self.assertEqual(release_version("v2.11.0"),(2,11,0))
+
+    def test_unknown_ghcr_release_never_uses_inferred_repo(self):
+        invoked=[]
+        def fetch(repo):
+            invoked.append(repo)
+            return {"tag_name":"v99.0.0"}
+        result=check_known_software_release("ghcr.io/unknown/private:latest",
+                                            fetch=fetch)
+        self.assertEqual(result["status"],"unsupported")
+        self.assertEqual(invoked,[])
 
     def test_no_newer_tag_does_not_imply_latest_when_incomplete(self):
         def fetch(repo,page):
