@@ -1,5 +1,6 @@
 """Background version scans must be opt-in, bounded and non-executable."""
 import unittest
+import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
@@ -47,9 +48,11 @@ class WatcherTests(unittest.TestCase):
     def test_backoff_until_expiry(self):
         checks={
             "local/redis":{"image_ref":"redis:7.2.4",
-                           "checked_at":(self.now-timedelta(hours=10)).isoformat()},
+                           "checked_at":(self.now-timedelta(hours=10)).isoformat(),
+                           "payload":json.dumps({"checker_rev":2,"current_software_version":None})},
             "local/redis-2":{"image_ref":"redis:7.2.4",
-                             "checked_at":(self.now-timedelta(hours=10)).isoformat()}
+                             "checked_at":(self.now-timedelta(hours=10)).isoformat(),
+                           "payload":json.dumps({"checker_rev":2,"current_software_version":None})}
         }
         with patch("dashboard.watch_updates.get_settings",return_value={
                 "auto_version_checks":True,"version_check_interval_hours":24}), \
@@ -59,6 +62,24 @@ class WatcherTests(unittest.TestCase):
                 checker=lambda image:calls.append(image),now=self.now)
         self.assertEqual(calls,[])
         self.assertEqual(result["checked"],0)
+
+    def test_legacy_version_checks_are_invalidated(self):
+        checks={"local/redis":{"image_ref":"redis:7.2.4",
+                                "checked_at":self.now.isoformat(),
+                                "payload":json.dumps({"status":"candidate",
+                                                      "candidate_tag":"20260805"})}}
+        due=due_images(self.services,checks,24,self.now)
+        self.assertIn("redis:7.2.4",due)
+
+    def test_installed_version_groups_are_distinct(self):
+        services=[
+            {"key":"local/a","image":"ghcr.io/homarr-labs/homarr:latest",
+             "software_version":"v2.9.0"},
+            {"key":"local/b","image":"ghcr.io/homarr-labs/homarr:latest",
+             "software_version":"v2.10.1"},
+        ]
+        due=due_images(services,{},24,self.now)
+        self.assertEqual(len(due),2)
 
     def test_changed_image_immediately_becomes_due(self):
         checks={"local/redis":{"image_ref":"redis:7.0.1",
