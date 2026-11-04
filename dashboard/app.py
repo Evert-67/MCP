@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from .diagnostics import build_diagnosis
 from .recovery import build_recovery_overview, build_recovery_plan
 from .health import build_health_overview
+from .incidents import build_incidents
 from .risk import LEVELS, classify, chosen_risk, effective_risk, permitted_mode
 from .updates import check_image_update
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
@@ -331,6 +332,12 @@ def api_diagnostics(service_key: str = Query(min_length=3, max_length=240),
     if host is None:
         raise HTTPException(404, "Host niet gevonden")
     return build_diagnosis(item, host)
+
+
+@app.get("/api/incidents")
+def api_incidents(_: Annotated[None, Depends(require_admin)]):
+    """Read-only correlated symptoms, not a proof of common root cause."""
+    return build_incidents(build_state())
 
 
 @app.get("/api/health/overview")
