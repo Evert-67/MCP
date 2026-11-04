@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>CodePug · Server Control</title>
+<link rel="stylesheet" href="/static/console/console.css">
+</head>
+<body>
+<div class="cp-layout">
+  <aside class="cp-nav" aria-label="Hoofdnavigatie">
+    <a class="cp-brand" href="/console/overview" aria-label="CodePug overzicht">
+      <span class="cp-brand-icon">🐶</span><span><strong>CodePug<span class="cp-dot">.</span></strong><small>SERVER CONTROL</small></span>
+    </a>
+    <div class="cp-nav-caption">WERKOMGEVING</div>
+    <nav id="cp-menu">
+      <a href="/console/overview" data-page="overview">▦ <span>Overzicht</span></a>
+      <a href="/console/servers" data-page="servers">▤ <span>Servers &amp; diensten</span></a>
+      <a href="/console/incidents" data-page="incidents">⚑ <span>Incidenten</span><span id="cp-incidents-count" class="cp-count" hidden></span></a>
+      <a href="/console/updates" data-page="updates">↻ <span>Updates</span></a>
+      <a href="/console/recovery" data-page="recovery">▣ <span>Backup &amp; Recovery</span></a>
+      <a href="/console/assistant" data-page="assistant">✧ <span>AI-assistent</span></a>
+      <a href="/console/settings" data-page="settings">⚙ <span>Instellingen</span></a>
+    </nav>
+    <div class="cp-nav-foot"><span class="cp-green-dot"></span><div><strong>Read-only ontwikkelversie</strong><small>Geen beheeracties zonder toestemming</small></div></div>
+  </aside>
+  <div class="cp-workspace">
+    <header class="cp-topbar">
+      <div><span class="cp-breadcrumb">CodePug /</span> <strong id="cp-section">Overzicht</strong></div>
+      <div class="cp-actions">
+        <span id="cp-updated" class="cp-updated" aria-live="polite">Gegevens laden…</span>
+        <button id="cp-theme" class="cp-icon-btn" type="button" title="Wissel kleurmodus" aria-label="Wissel kleurmodus">◐</button>
+        <button id="cp-refresh" class="cp-button subtle" type="button">Verversen</button>
+      </div>
+    </header>
+    <main id="cp-content" class="cp-content" tabindex="-1" aria-live="polite">
+      <p class="cp-muted">Beheeromgeving laden…</p>
+    </main>
+    <footer class="cp-footer">CodePug Server Control · Bewaken → Begrijpen → Beheren · <span id="cp-version">ontwikkelversie</span></footer>
+  </div>
+</div>
+<script type="module" src="/static/console/main.js"></script>
+</body>
+</html>
