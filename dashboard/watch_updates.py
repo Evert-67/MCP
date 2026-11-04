@@ -53,7 +53,7 @@ def due_images(services: list[dict], checks: dict, interval_hours: int,
             except (ValueError, TypeError):
                 payload = {}
             if (checked_at and checked_at > threshold and
-                    payload.get("checker_rev") == 2 and
+                    payload.get("checker_rev") == 3 and
                     (payload.get("current_software_version") or "") == installed):
                 continue
         group_key = image + ("|" + installed if installed else "")
