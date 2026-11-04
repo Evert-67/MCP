@@ -118,15 +118,31 @@ def recent_events(limit=25):
 
 
 def save_update_check(service_key: str, image: str, result: dict) -> None:
-    """Record operator-initiated read-only registry lookup (no credentials)."""
+    """Persist read-only results; log a notification only for new candidates."""
+    notify = False
     with db() as c:
+        prior = c.execute(
+            "SELECT payload,image_ref FROM update_checks WHERE service_key=?",
+            (service_key,)
+        ).fetchone()
+        try:
+            prior_result = json.loads(prior["payload"]) if prior and prior["image_ref"] == image else {}
+        except (ValueError, TypeError):
+            prior_result = {}
+        if result.get("status") == "candidate" and (
+            prior_result.get("status") != "candidate" or
+            prior_result.get("candidate_tag") != result.get("candidate_tag")
+        ):
+            notify = True
         c.execute(
             "INSERT INTO update_checks(service_key,image_ref,payload,checked_at) "
             "VALUES(?,?,?,?) ON CONFLICT(service_key) DO UPDATE SET "
             "image_ref=excluded.image_ref,payload=excluded.payload,checked_at=excluded.checked_at",
             (service_key, image, json.dumps(result, ensure_ascii=False), utcnow())
         )
-    event("version-checked", service_key, str(result.get("status", "unknown")))
+    if notify:
+        event("update-candidate", service_key,
+              str(result.get("candidate_tag", "?"))[:70])
 
 
 def all_update_checks() -> dict:
@@ -142,6 +158,9 @@ DEFAULT_SETTINGS = {
     "offline_after_seconds": 300,
     "alerts_enabled": True,
     "notify_unhealthy": True,
+    # Explicitly opt in before Docker Hub receives public image references.
+    "auto_version_checks": False,
+    "version_check_interval_hours": 24,
 }
 
 
