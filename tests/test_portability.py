@@ -16,6 +16,14 @@ class PortabilityTests(unittest.TestCase):
         self.assertNotIn("/opt/codepug-mcp/data:/host-snapshot", compose)
         self.assertNotIn("EB-UBU-HOME", app)
 
+    def test_preview_uses_distinct_image_tags(self):
+        compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+        # Prevent parallel Docker BuildKit exporters from racing on the same tag.
+        self.assertIn("image: codepug-console:preview", compose)
+        self.assertIn("image: codepug-console-watcher:preview", compose)
+        self.assertEqual(compose.count("image: codepug-console:preview"), 1)
+        self.assertIn("DASHBOARD_PORT:-8771", compose)
+
     def test_language_catalog_and_switcher(self):
         page = (ROOT / "dashboard/templates/index.html").read_text(encoding="utf-8")
         i18n = (ROOT / "dashboard/static/i18n.js").read_text(encoding="utf-8")
