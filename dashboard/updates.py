@@ -165,3 +165,97 @@ def fetch_hub_page(repository: str, page: int) -> dict:
     if len(raw) > 512_000:
         raise ValueError("Registry response too large")
     return json.loads(raw.decode("utf-8"))
+
+
+# Application releases: only sources explicitly mapped to a known image.
+# Never infer arbitrary GitHub URLs from a container or image name.
+KNOWN_SOFTWARE_RELEASES = {
+    "ghcr.io/homarr-labs/homarr": "homarr-labs/homarr",
+}
+RELEASE_TAG = re.compile(r"^v?(\d{1,3})\.(\d{1,3})(?:\.(\d{1,4}))?$", re.I)
+
+
+def release_version(value: str | None) -> tuple[int, int, int] | None:
+    match = RELEASE_TAG.fullmatch(str(value or ""))
+    return (tuple(map(int, match.groups(default="0"))) if match else None)
+
+
+def fetch_github_latest_release(repository: str) -> dict:
+    """Anonymous GitHub Releases API for explicit allowlisted repositories."""
+    if repository not in KNOWN_SOFTWARE_RELEASES.values():
+        raise ValueError("Not an approved release source")
+    req = Request(
+        f"https://api.github.com/repos/{repository}/releases/latest",
+        headers={
+            "User-Agent": "CodePug-SoftwareReleaseCheck/0.7",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+    )
+    with urlopen(req, timeout=8) as response:
+        if response.status != 200:
+            raise ValueError("GitHub release unavailable")
+        raw = response.read(128_001)
+        if len(raw) > 128_000:
+            raise ValueError("GitHub release too large")
+    return json.loads(raw.decode("utf-8"))
+
+
+def check_known_software_release(image: str, installed_version: str | None = None,
+                                 fetch=None) -> dict:
+    """Discover a release, never claim update unless installed version is known."""
+    name, separator, tag = image.rpartition(":")
+    repository = KNOWN_SOFTWARE_RELEASES.get(name) if separator else None
+    if not repository:
+        return result_unknown(image, "Geen bekende officiële software-releasebron")
+    fetch = fetch or fetch_github_latest_release
+    try:
+        payload = fetch(repository)
+        release = str(payload.get("tag_name") or "")[:60]
+        latest = release_version(release)
+        if latest is None:
+            return result_unknown(image, "Onverwacht versienummer van officiële bron.",
+                                  "check_failed")
+    except (HTTPError, URLError, TimeoutError, OSError, ValueError,
+            TypeError, AttributeError, json.JSONDecodeError):
+        return result_unknown(image, "Officiële GitHub-releases konden niet worden geladen.",
+                              "check_failed")
+    installed = release_version(installed_version)
+    if installed is None:
+        status = "release_found"
+        note = ("Officiële release " + release + " gevonden. De exacte draaiende softwareversie "
+                "is niet bekend; updatebehoefte NIET bevestigd. "
+                "Een :latest-tag of oude containerleeftijd is geen versiebewijs.")
+    elif latest > installed:
+        status = "candidate"
+        note = ("Software-release " + release + " is nieuwer dan de "
+                "door de host gerapporteerde versie " + str(installed_version) +
+                ". Controleer compatibiliteit, imagebeschikbaarheid en backup vóór updaten.")
+    else:
+        status = "no_newer_found"
+        note = ("De officiële release is niet nieuwer dan de door de host "
+                "gerapporteerde applicatieversie.")
+    return {
+        "status": status,
+        "current_image": image[:240],
+        "current_tag": tag,
+        "current_software_version": str(installed_version) if installed else None,
+        "latest_release": release,
+        "candidate_tag": release if status == "candidate" else None,
+        "candidate_image": None,  # Release != proven published OCI image.
+        "source": "GitHub Releases (officieel)",
+        "release_url": f"https://github.com/{repository}/releases/tag/{release}",
+        "checked_pages": 1,
+        "complete": True,
+        "checker_rev": 2,
+        "execution_enabled": False,
+        "note": note,
+    }
+
+
+def check_image_update(image: str, installed_version: str | None = None) -> dict:
+    """Select a safe read-only provider for this exact image."""
+    name, sep, tag = image.rpartition(":")
+    if sep and name in KNOWN_SOFTWARE_RELEASES:
+        return check_known_software_release(image, installed_version)
+    return check_public_docker_hub(image)
