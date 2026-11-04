@@ -16,6 +16,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+# Support both `python agent/scan.py` and importing as a package in tests.
+if __package__:
+    from .health import collect_host_health
+else:
+    from health import collect_host_health
+
 
 def docker(*args):
     return subprocess.check_output(["docker", *args], text=True, timeout=20)
@@ -66,7 +72,9 @@ def scan():
         disk_root = {}
     return {"collected_at":datetime.now(timezone.utc).isoformat(),
             "platform":platform.system().lower(),
-            "capabilities":["docker-inventory"], "containers":records,
+            "capabilities":["docker-inventory", "host-health", "local-app-probes"],
+            "containers":records,
+            "host_health":collect_host_health(),
             "memory":memory, "disk_root":disk_root}
 
 
