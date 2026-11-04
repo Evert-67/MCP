@@ -64,7 +64,7 @@ def result_unknown(image: str, reason: str, status: str = "unsupported") -> dict
             "current_tag": None, "candidate_tag": None,
             "candidate_image": None, "source": None,
             "checked_pages": 0, "complete": False,
-            "note": reason, "execution_enabled": False}
+            "note": reason, "execution_enabled": False, "checker_rev": 2}
 
 
 def check_public_docker_hub(image: str, fetch=None) -> dict:
@@ -101,6 +101,15 @@ def check_public_docker_hub(image: str, fetch=None) -> dict:
                     continue
                 if candidate[1:] != current[1:]:
                     continue  # Keep same flavor and v-prefix.
+                # CalVer/date tags (e.g. 20260805) are NOT semantic
+                # successor versions to Alpine 3.20. Never compare schemes.
+                current_major, candidate_major = current[0][0], candidate[0][0]
+                if (current_major >= 1000) != (candidate_major >= 1000):
+                    continue
+                if (current_major >= 1000 and candidate_major >= 1000 and
+                        len(ref["tag"].lstrip("v").split(".")[0]) !=
+                        len(tag.lstrip("v").split(".")[0])):
+                    continue
                 if candidate[0] > max_found[0]:
                     max_found = (candidate[0], tag)
             if not payload.get("next"):
@@ -131,6 +140,7 @@ def check_public_docker_hub(image: str, fetch=None) -> dict:
         "complete": complete,
         "note": note,
         "execution_enabled": False,
+        "checker_rev": 2,
     }
 
 
