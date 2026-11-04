@@ -55,6 +55,36 @@ best-effort tagvergelijking tegen de **publieke Docker Hub API**:
 - **Niet gecontroleerd** en **Niet ondersteund** blijven expliciet zichtbaar.
   Als de taglijst niet volledig kon worden doorzocht wordt dat vermeld.
 
+### Achtergrondversiecontrole (nieuwe functionele mijlpaal)
+
+Een **afzonderlijke version-watcher-container** draait onafhankelijk van de browser,
+met uitsluitend netwerktoegang naar de publieke Docker Hub API en leestoegang
+tot de inventaris. De watcher heeft geen dashboardwachtwoord in zijn omgeving,
+geen Docker-socket, geen SSH of shellrechten op de host, en geen open poort.
+
+- Standaard staat de uitgaande achtergrondcontrole **uit**. Zet deze via
+  **Instellingen → Automatische versiecontrole** aan om expliciet toestemming
+  te geven voor het controleren van publieke Docker Hub-imagenamen.
+- Interval: 6, 12, 24, 48 of 168 uur (standaard 24 uur na inschakelen).
+  Om scans te spreiden verwerkt de watcher maximaal vier unieke imagenamen
+  per minuut; grote omgevingen zijn daarom niet direct volledig bijgewerkt.
+- Alleen de actuele inventaris van **online hosts** wordt gebruikt.
+  Checks van dezelfde imagenaam worden gedeeld over diensten.
+- Checkresultaten en het tijdstip van de laatste check worden in SQLite bewaard.
+  Bij een nieuw gevonden kandidaattag volgt een event
+  `update-candidate`, zonder duplicaten bij dezelfde versie.
+- De hoofdpagina toont **Nieuwe versies gevonden** en de actuele scanstand.
+  Het dienstenoverzicht heeft een filter op versiecontrole.
+- Dit is een **tagwaarschuwing, geen beveiligings- of compatibiliteitsadvies**.
+  De check kan niet aantonen dat een update veilig, geschikt of verplicht is.
+- Bij `:latest`, image-digests, GHCR en andere registries is de status
+  (voorlopig) **Niet ondersteund**. Reeds uitgevoerde scans worden niet
+  ongevraagd naar externe AI-servers verstuurd.
+
+**Wat nog ontbreekt:** een echte herstelagent, back-upverificatie,
+beschikbaarheidsbewaking buiten de snapshotcollector, alerts buiten
+het geopende dashboard, en ondersteuning voor GHCR/digest-vergelijking.
+
 Toekomstig: adapters voor **GHCR**, private registries,
 same-tag digest updates en architectuur-/compatibiliteitscontrole. Een
 nieuwe beschikbare versie is nooit automatisch een verplichte update.
