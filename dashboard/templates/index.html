@@ -13,6 +13,7 @@
     <a class="nav-link-custom active" href="#overview"><i class="bi bi-grid-1x2"></i> Overzicht</a>
     <a class="nav-link-custom" href="#services"><i class="bi bi-boxes"></i> Diensten <span class="nav-count" id="nav-count">—</span></a>
     <a class="nav-link-custom" href="#servers"><i class="bi bi-hdd-stack"></i> Servers</a>
+    <a class="nav-link-custom" href="#health"><i class="bi bi-activity"></i> Systeemcontrole</a>
     <a class="nav-link-custom" href="#diagnose"><i class="bi bi-robot"></i> AI &amp; Diagnose</a>
     <a class="nav-link-custom" href="#recovery"><i class="bi bi-database-check"></i> Backup &amp; Recovery</a>
     <a class="nav-link-custom" href="#risk"><i class="bi bi-shield-check"></i> Risicobeleid</a>
@@ -28,6 +29,17 @@
       <section class="metrics"><article class="metric"><div class="metric-title">Gekoppelde servers <i class="bi bi-hdd-network"></i></div><div class="metric-number" id="m-servers">—</div><div class="metric-footer"><span class="positive" id="m-online">— online</span><span>in de omgeving</span></div></article><article class="metric"><div class="metric-title">Docker-containers <i class="bi bi-box-seam"></i></div><div class="metric-number" id="m-containers">—</div><div class="metric-footer"><span class="positive" id="m-running">— actief</span><span id="m-stopped">— gestopt</span></div></article><article class="metric"><div class="metric-title">Aandacht vereist <i class="bi bi-exclamation-triangle"></i></div><div class="metric-number warning" id="m-alerts">—</div><div class="metric-footer"><span>Gestopt of ongezond</span></div></article><article class="metric"><div class="metric-title">Nieuwe versies gevonden <i class="bi bi-arrow-repeat"></i></div><div class="metric-number" id="m-updates">—</div><div class="metric-footer"><span class="neutral" id="m-updates-scan">Versiecontrole uitgeschakeld</span></div></article></section>
       <div class="section-head" id="servers"><div><h2>Jouw servers</h2><p>Automatisch ontdekte en gekoppelde hosts</p></div><button class="text-btn" id="add-server-2"><i class="bi bi-plus-circle"></i> Server koppelen</button></div>
       <div class="server-grid" id="server-list"><div class="loading">Servergegevens laden...</div></div>
+      <div class="section-head" id="health"><div><h2>Systeemcontrole</h2><p>Linux, Docker, applicaties, bereikbaarheid en updates per host</p></div><span class="small-muted"><i class="bi bi-shield-lock"></i> Read-only · geen herstelacties</span></div>
+      <section class="panel infrastructure-panel" aria-label="Systeemcontrole">
+        <div class="infrastructure-metrics">
+          <div class="infrastructure-metric"><strong id="health-hosts">—</strong><small>Hosts bekeken</small></div>
+          <div class="infrastructure-metric"><strong id="health-agent-coverage">—</strong><small>Met diepgaande hostmeting</small></div>
+          <div class="infrastructure-metric"><strong id="health-probes">—</strong><small>Lokale app-controles</small></div>
+          <div class="infrastructure-metric"><strong id="health-findings">—</strong><small>Belangrijke aandachtspunten</small></div>
+        </div>
+        <div class="panel-note"><i class="bi bi-info-circle"></i> <span id="health-notice">Beschikbaarheid en versies zijn alleen betrouwbaar te beoordelen als de betreffende host een eigen agent met voldoende meetrechten heeft. Geen meting betekent onbekend, niet gezond.</span></div>
+        <div id="health-host-list" class="health-host-list"><p class="loading">Infrastructuurgegevens laden...</p></div>
+      </section>
       <div class="section-head" id="services"><div><h2>Dienstenoverzicht</h2><p>Doorzoek en beheer risico-instellingen per container</p></div><span class="small-muted">Inventarisatie zonder Docker-socket in het dashboard</span></div>
       <div class="panel"><div class="filterbar"><div class="search"><i class="bi bi-search"></i><input id="search" placeholder="Zoek container, image of project..." autocomplete="off"></div><select id="filter-server" class="filter-select"><option value="">Alle servers</option></select><select id="filter-status" class="filter-select"><option value="">Alle statussen</option><option value="running">Actief</option><option value="stopped">Gestopt</option></select><select id="filter-risk" class="filter-select"><option value="">Alle risico's</option><option value="low">Laag</option><option value="medium">Middel</option><option value="high">Hoog</option><option value="critical">Kritiek</option></select><select id="filter-update" class="filter-select"><option value="">Alle versiecontroles</option><option value="candidate">Nieuwere tag</option><option value="not_checked">Niet gecontroleerd</option><option value="unsupported">Niet ondersteund</option><option value="check_failed">Mislukt</option></select></div><div class="table-responsive"><table class="services-table"><thead><tr><th>DIENST</th><th>SERVER</th><th>STATUS</th><th>RISICO</th><th>VERSIECONTROLE</th><th>UPDATEBELEID</th><th></th></tr></thead><tbody id="service-rows"><tr><td colspan="7" class="loading">Containers laden...</td></tr></tbody></table></div><div class="table-foot"><span id="results-count">— resultaten</span><span>Klik op een dienst om het beleid in te stellen</span></div></div>
       <div class="section-head" id="diagnose"><div><h2>AI &amp; Diagnose</h2><p>Onderzoek problemen met ChatGPT, zonder automatisch gegevens te verzenden</p></div><span class="small-muted"><i class="bi bi-shield-lock"></i> Alleen lezen · uitvoering uitgeschakeld</span></div>
@@ -127,5 +139,6 @@
 <script src="/static/i18n.js"></script>
 <script src="/static/diagnose.js"></script>
 <script src="/static/recovery.js"></script>
+<script src="/static/health.js"></script>
 <script src="/static/app.js"></script>
 </body></html>
