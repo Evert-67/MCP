@@ -128,6 +128,25 @@ class WebTests(unittest.TestCase):
             self.assertEqual(data["summary"]["hosts_with_deep_evidence"],0)
             self.assertFalse(data["hosts"][0]["fully_verified"])
 
+    def test_host_health_ingest_never_copies_arbitrary_agent_secrets(self):
+        from dashboard.app import clean_host_health
+        sample={
+            "api_key":"TOP_SECRET_NOT_FOR_UI",
+            "linux":{"pretty_name":"Ubuntu 22.04.5 LTS",
+                     "updates_available":17,"shell_history":"PRIVATE_HISTORY"},
+            "docker":{"daemon_active":True,"server_version":"29.0.0",
+                      "environment":{"PASSWORD":"SECRET"},
+                      "apt_pending_packages":["docker-ce","private-something"]},
+            "app_checks":[{"name":"Sonarr","id":"sonarr","status":"unreachable",
+                           "http_status":None,"response_body":"TOKEN_123"}],
+        }
+        clean=clean_host_health(sample)
+        self.assertIn("Ubuntu 22.04.5",str(clean))
+        for secret in ("TOP_SECRET_NOT_FOR_UI","PRIVATE_HISTORY",
+                       "PASSWORD","TOKEN_123","private-something"):
+            self.assertNotIn(secret,str(clean))
+        self.assertEqual(clean["docker"]["apt_pending_packages"],["docker-ce"])
+
     def test_agent_flow(self):
         with TestClient(app) as client:
             auth=('admin','test-password-not-for-use')
