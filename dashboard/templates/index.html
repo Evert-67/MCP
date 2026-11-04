@@ -99,7 +99,15 @@
             </div>
             <label class="settings-switch"><input type="checkbox" id="settings-alerts"> Toon waarschuwingen in het dashboard</label>
             <label class="settings-switch"><input type="checkbox" id="settings-unhealthy"> Meld ongezonde containers</label>
-            <div class="panel-note"><i class="bi bi-info-circle"></i> Meldingen verschijnen alleen zolang het dashboard geopend is. E-mail, pushberichten en achtergrondupdates zijn nog niet ingeschakeld.</div>
+            <div class="form-row"><strong>Automatische versiecontrole</strong>
+              <label class="settings-switch"><input type="checkbox" id="settings-auto-version"> Zoek op de achtergrond naar nieuwe Docker Hub-tags</label>
+              <small class="settings-hint">Na inschakelen verstuurt CodePug alleen de namen van ondersteunde publieke Docker Hub-images voor een tagcontrole. Geen updates of herstarts.</small>
+            </div>
+            <div class="form-row"><label for="settings-version-interval">Hoe vaak controleren?</label>
+              <select class="form-field" id="settings-version-interval"><option value="6">Elke 6 uur</option><option value="12">Elke 12 uur</option><option value="24">Elke 24 uur</option><option value="48">Elke 2 dagen</option><option value="168">Iedere week</option></select>
+              <small class="settings-hint">De aparte watcher voert controles uit, ook als deze pagina gesloten is. Alleen ondersteunde versietags.</small>
+            </div>
+            <div class="panel-note"><i class="bi bi-info-circle"></i> Pop-upmeldingen verschijnen alleen zolang het dashboard geopend is. Versiecontroles kunnen wel op de achtergrond plaatsvinden na inschakelen. E-mail, pushberichten en automatische updates zijn nog niet actief.</div>
             <div class="modal-buttons"><button type="submit" class="primary-btn" id="settings-save"><i class="bi bi-check-lg"></i> Instellingen opslaan</button></div>
           </form>
         </section>
