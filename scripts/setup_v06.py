@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CodePug v0.6 developer setup: store a password hash without manual copy/paste.
+"""CodePug password setup: store a password hash without manual copy/paste.
 
 This does NOT provide a web setup wizard or install Docker. Existing .env files
 are preserved and never reset unless the operator explicitly passes --reset.
@@ -69,7 +69,7 @@ def main():
             print("Er is al een wachtwoord ingesteld. Niets gewijzigd.")
             print("Gebruik --reset uitsluitend als je bewust een nieuw wachtwoord wilt kiezen.")
             return
-    print("CodePug v0.6 configuratie — kies een wachtwoordzin (minimaal 12 tekens).")
+    print("CodePug configuratie — kies een wachtwoordzin (minimaal 12 tekens).")
     first = getpass.getpass("Nieuw dashboardwachtwoord: ")
     second = getpass.getpass("Herhaal dashboardwachtwoord: ")
     if first != second:
