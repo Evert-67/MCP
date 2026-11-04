@@ -524,4 +524,4 @@ document.querySelectorAll("#cp-menu a[data-page]").forEach(a=>{
 show();
 // Avoid clobbering forms or in-progress investigations with interval refresh.
 if(!["settings","assistant","recovery"].includes(page))
-  setInterval(()=>{if(!document.hidden)show()},60000);
+  setInterval(()=>{if(!document.hidden && !["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName))show()},60000);
