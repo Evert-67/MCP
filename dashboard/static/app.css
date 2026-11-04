@@ -69,3 +69,6 @@
 #recovery-plan-button:disabled{opacity:.48;cursor:not-allowed}
 @media(max-width:900px){.recovery-metrics{grid-template-columns:1fr}.recovery-grid{grid-template-columns:1fr}}
 @media(max-width:570px){.recovery-host{align-items:start;flex-direction:column;gap:8px}.recovery-metric-text{font-size:20px}}
+
+/* v0.7: show immutable safety floor beside operator-chosen risk. */
+.policy-safety-note{display:block;margin-top:5px;font-size:10px;white-space:nowrap;color:var(--muted)}
