@@ -102,7 +102,7 @@ git pull --ff-only
 docker compose config --quiet
 docker compose up -d --build
 docker compose ps
-curl -I http://127.0.0.1:8771/healthz
+curl -i http://127.0.0.1:8771/healthz
 ```
 
 De `/healthz`-endpoint antwoordt op een werkende preview met status 200.
