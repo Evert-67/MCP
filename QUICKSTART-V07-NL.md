@@ -51,6 +51,8 @@ en de gekozen wachtwoordzin.
 3. De waarschuwing dat back-upstatus en hersteltests nog **onbekend** zijn.
 4. **Toon herstelplan** voor een dienst: een checklist zonder uitvoerbare knoppen.
 5. De bestaande **AI & Diagnose** en v0.6-functies.
+6. Onder **Diensten > Risicobeleid** kan nu ook **Laag** gekozen worden. De harde veiligheidsinschatting verandert daardoor niet.
+7. Per dienst: **Controleer nieuwere versie** voor een optionele read-only controle van publieke Docker Hub-images met genummerde tags.
 
 ## Stoppen van uitsluitend v0.7
 
@@ -61,5 +63,7 @@ docker compose down
 
 **Let op:** nooit `docker compose down` in de map van een andere CodePug-versie
 en geen productiedata of `/opt/codepug-mcp/data` verwijderen.
+
+Na een nieuwe commit op de v0.7-branch kun je de testinstallatie bijwerken met `cd /opt/codepug-control-v07 && git pull --ff-only && docker compose up -d --build`.
 
 Volledige roadmap: [docs/V07_BACKUP_RECOVERY.md](docs/V07_BACKUP_RECOVERY.md).
