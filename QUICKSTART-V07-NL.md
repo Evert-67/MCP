@@ -64,6 +64,44 @@ en de gekozen wachtwoordzin.
     **Huidige versie onbekend**. Dat is nog géén bevestigde beschikbare update.
     De bestaande v0.4-snapshot levert geen applicatieversie of image-digest.
 
+## Nieuwe Systeemcontrole: Linux, Docker en applicaties
+
+De sidebar bevat nu ook **Systeemcontrole**. Met uitsluitend de bestaande
+v0.4-snapshot zie je containerbevindingen; Linux- en applicatiedetails staan
+dan terecht op **Onbekend**. Dit betekent niet dat er iets kapot is.
+
+**Om meer te zien is een gekoppelde hostagent nodig.** Voor een eerste
+read-only proef op dezelfde Ubuntu-host:
+
+1. Open in CodePug v0.7 het onderdeel Servers > Server koppelen.
+2. Geef de agent een herkenbare naam, bijvoorbeeld Ubuntu host - extra metingen.
+3. Bewaar het agent-ID en eenmalige token uitsluitend lokaal, niet in deze chat.
+4. Sla het token op in een bestand met rechten 0600; stel lokaal
+   CODEPUG_HUB_URL=http://127.0.0.1:8770, CODEPUG_AGENT_ID en
+   CODEPUG_TOKEN_FILE in.
+5. Voer op de **host zelf** vanuit de bronmap python3 agent/scan.py uit.
+6. Ververs CodePug: de nieuwe agenthost toont de hostmeting.
+
+De bestaande lokale snapshot en een extra agent kunnen voorlopig als twee
+kaarten verschijnen; automatische samenvoeging van identiteiten is nog niet
+ingebouwd. Laat de werkende MCP-collector in stand.
+
+De scanner doet geen apt update, Docker pull, restart of upgrade.
+De Docker CLI vraagt toegang tot de Docker-daemon; die rechten zijn
+krachtig (Docker-groep is root-equivalent). Gebruik de agent alleen op
+vertrouwde hosts.
+
+Voor tests van *appbereikbaarheid* kun je op die host een expliciet
+agent/checks.json maken op basis van agent/checks.example.json en het
+pad via CODEPUG_HEALTH_CHECKS_FILE instellen. Alleen localhost-poorten zijn
+toegestaan. Een HTTP-status is geen volledige app-diagnose.
+
+Voor EB MEDIARR of een andere server is een **eigen** agent nodig met een
+beveiligde uitgaande HTTPS-verbinding naar de hub. Pas de huidige
+localhost-binding niet zomaar aan om internettoegang mogelijk te maken.
+
+Zie docs/INFRASTRUCTURE_CONTROL.md voor de controles en beperkingen.
+
 ## Stoppen van uitsluitend v0.7
 
 ```bash
