@@ -44,6 +44,20 @@ class AgentHealthTests(unittest.TestCase):
             self.assertEqual(command.call_args.args,
                              ("apt","list","--upgradable"))
 
+    def test_docker_package_candidate_from_local_cache(self):
+        from agent.health import docker_package_candidates
+        policy = ("docker-ce:\\n  Installed: 5:28.0.0\\n  Candidate: 5:29.0.0\\n"
+                  "  Version table:\\n"
+                  "docker-compose-plugin:\\n  Installed: 2.30.0\\n"
+                  "  Candidate: 2.30.0\\n"
+                  "docker.io:\\n  Installed: (none)\\n  Candidate: 28.0.0\\n")
+        with patch("agent.health.command",return_value=(True,policy)):
+            found=docker_package_candidates()
+        self.assertEqual(found["status"],"cached")
+        self.assertTrue(found["pending"])
+        self.assertEqual(found["pending_packages"],["docker-ce"])
+        self.assertEqual(found["packages_checked"],2)
+
     def test_unknown_when_docker_and_systemctl_unavailable(self):
         with patch("agent.health.platform.system",return_value="Linux"), \
              patch("agent.health.platform.release",return_value="6.8.0"), \
