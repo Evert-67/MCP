@@ -69,6 +69,15 @@ def assess_host(host: dict, services: list[dict]) -> dict:
                 "De lokale Docker-service is niet actief volgens systemd.",
                 "Controleer Docker-service en logs; geen blinde herstart.",
                 "agent-systemd"))
+        if docker.get("apt_package_update_available") is True:
+            packages = docker.get("apt_pending_packages") or []
+            findings.append(item(
+                "docker-package-update", "review", host.get("label", "Host"),
+                "APT heeft nieuwere versies in de cache voor: " +
+                ", ".join(str(p) for p in packages[:5]),
+                "Controleer de Docker-release, back-up, compatibiliteit en "
+                "de herstartimpact. APT-cache is mogelijk verouderd.",
+                "agent-apt-cache"))
     for check in app_checks:
         status = check.get("status")
         if status in ("error", "unreachable"):
