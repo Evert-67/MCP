@@ -50,6 +50,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS settings (
           key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS update_checks (
+          service_key TEXT PRIMARY KEY, image_ref TEXT NOT NULL,
+          payload TEXT NOT NULL, checked_at TEXT NOT NULL
+        );
         """)
         if "scan_interval" not in {r["name"] for r in c.execute("PRAGMA table_info(agents)")}:
             c.execute("ALTER TABLE agents ADD COLUMN scan_interval INTEGER NOT NULL DEFAULT 120")
@@ -111,6 +115,25 @@ def put_policy(key: str, risk: str | None, mode: str, notes: str):
 def recent_events(limit=25):
     with db() as c:
         return [dict(r) for r in c.execute("SELECT time,kind,subject,detail FROM events ORDER BY id DESC LIMIT ?", (limit,))]
+
+
+def save_update_check(service_key: str, image: str, result: dict) -> None:
+    """Record operator-initiated read-only registry lookup (no credentials)."""
+    with db() as c:
+        c.execute(
+            "INSERT INTO update_checks(service_key,image_ref,payload,checked_at) "
+            "VALUES(?,?,?,?) ON CONFLICT(service_key) DO UPDATE SET "
+            "image_ref=excluded.image_ref,payload=excluded.payload,checked_at=excluded.checked_at",
+            (service_key, image, json.dumps(result, ensure_ascii=False), utcnow())
+        )
+    event("version-checked", service_key, str(result.get("status", "unknown")))
+
+
+def all_update_checks() -> dict:
+    with db() as c:
+        return {r["service_key"]: dict(r) for r in c.execute(
+            "SELECT service_key,image_ref,payload,checked_at FROM update_checks")}
+
 
 
 # Presentation and monitoring preferences; never an update-execution grant.
