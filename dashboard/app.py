@@ -1,4 +1,4 @@
-"""CodePug Control Center v0.5: observation and policy editing, no update execution."""
+"""CodePug Server Control v0.7: read-only monitoring and recovery planning."""
 from __future__ import annotations
 import hashlib
 import hmac
@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .diagnostics import build_diagnosis
+from .recovery import build_recovery_overview, build_recovery_plan
 from .risk import LEVELS, classify, effective_risk, permitted_mode
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
                       new_agent, put_policy, recent_events, save_report,
@@ -165,7 +166,7 @@ def build_state():
             s["age_seconds"] = None
         s["online"] = s["age_seconds"] is not None and s["age_seconds"] < settings["offline_after_seconds"]
         s["container_count"] = sum(1 for a in out if a["server_id"] == s["id"])
-    return {"version":"0.6.0-dev", "servers":servers, "services":out,
+    return {"version":"0.7.0-dev", "servers":servers, "services":out,
             "settings":settings, "agents":agents,
             "events":recent_events(20), "execution_enabled":False,
             "note":"Updatebeleid wordt opgeslagen; deze versie voert geen updates uit."}
@@ -204,6 +205,28 @@ def api_diagnostics(service_key: str = Query(min_length=3, max_length=240),
     if host is None:
         raise HTTPException(404, "Host niet gevonden")
     return build_diagnosis(item, host)
+
+
+@app.get("/api/recovery/overview")
+def api_recovery_overview(_: Annotated[None, Depends(require_admin)]):
+    """Inventory-based visibility only: no backup provider has been connected."""
+    return build_recovery_overview(build_state())
+
+
+@app.get("/api/recovery/plan")
+def api_recovery_plan(
+    service_key: str = Query(min_length=3, max_length=240),
+    _: Annotated[None, Depends(require_admin)] = None
+):
+    """Plan manual recovery of a visible service without executing anything."""
+    state = build_state()
+    service = next((s for s in state["services"] if s["key"] == service_key), None)
+    if service is None:
+        raise HTTPException(404, "Dienst niet gevonden")
+    host = next((h for h in state["servers"] if h["id"] == service["server_id"]), None)
+    if host is None:
+        raise HTTPException(404, "Host niet gevonden")
+    return build_recovery_plan(service, host)
 
 
 @app.post("/api/policies")
