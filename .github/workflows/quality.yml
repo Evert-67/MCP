@@ -26,6 +26,7 @@ jobs:
           node --check dashboard/static/app.js
           node --check dashboard/static/diagnose.js
           node --check dashboard/static/recovery.js
+          node --check dashboard/static/health.js
       - name: Check Docker Compose configuration
         run: |
           cp .env.example .env
