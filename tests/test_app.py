@@ -21,6 +21,41 @@ class WebTests(unittest.TestCase):
             r=client.get('/api/state',auth=('admin','test-password-not-for-use'))
             self.assertEqual(r.status_code,200)
             self.assertFalse(r.json()['execution_enabled'])
+    def test_console_routes_are_distinct_authenticated_pages(self):
+        from unittest.mock import patch
+        with TestClient(app) as client:
+            self.assertEqual(client.get('/console/overview').status_code,401)
+            self.assertEqual(client.get('/api/incidents').status_code,401)
+            auth=('admin','test-password-not-for-use')
+            root=client.get('/',auth=auth,follow_redirects=False)
+            self.assertEqual(root.status_code,307)
+            self.assertEqual(root.headers['location'],'/console/overview')
+            for page in ('overview','servers','incidents','updates',
+                         'recovery','assistant','settings'):
+                r=client.get('/console/'+page,auth=auth)
+                self.assertEqual(r.status_code,200,page)
+                self.assertIn('data-page="'+page+'"',r.text)
+                self.assertIn('/static/console/main.js',r.text)
+            self.assertEqual(client.get('/console/private',auth=auth).status_code,404)
+            self.assertIn('Goedemorgen, beheerder',
+                          client.get('/legacy',auth=auth).text)
+
+    def test_read_only_incidents_api_authorization(self):
+        from unittest.mock import patch
+        data={
+            'servers':[{'id':'h','label':'Host','online':True}],
+            'services':[{'name':'stopped-service','server_id':'h',
+                         'state':'exited','status':'Exited'}]
+        }
+        with TestClient(app) as client, patch('dashboard.app.build_state',
+                                             return_value=data):
+            result=client.get('/api/incidents',
+                              auth=('admin','test-password-not-for-use'))
+            self.assertEqual(result.status_code,200,result.text)
+            self.assertTrue(result.json()['read_only'])
+            self.assertFalse(result.json()['execution_enabled'])
+            self.assertFalse(result.json()['root_causes_verified'])
+
     def test_diagnostics_requires_auth_and_is_read_only(self):
         from unittest.mock import patch
         sample = {
