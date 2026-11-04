@@ -61,7 +61,10 @@
         metric("Engine", host.docker.server_version),
         metric("CLI", host.docker.client_version),
         metric("Compose", host.docker.compose_version),
-        metric("Nieuwste versie?", "Nog niet geverifieerd")
+        metric("APT Docker-updates", host.docker.apt_package_update_available === null
+          ? "Onbekend" : host.docker.apt_package_update_available
+          ? "Nieuwere pakketten beschikbaar" : "Geen nieuwere in pakketcache"),
+        metric("Nieuwste upstream-versie?", "Nog niet geverifieerd")
       );
     } else {
       docker.append(make("p", "health-unknown", "Docker-versiecontrole niet aangesloten."));
