@@ -153,6 +153,13 @@ def clean_host_health(raw):
         "client_version": text("client_version", docker, 64),
         "compose_version": text("compose_version", docker, 64),
         "engine_latest_verified": False,  # Never claim "latest" from local version alone.
+        "package_cache_status": text("package_cache_status", docker, 20),
+        "apt_package_update_available": boolean("apt_package_update_available", docker),
+        "apt_pending_packages": [str(name)[:40] for name in
+                                 (docker.get("apt_pending_packages") or [])[:5]
+                                 if isinstance(name, str) and name in (
+                                     "docker-ce", "docker-ce-cli",
+                                     "docker-compose-plugin", "docker.io", "containerd.io")],
     }
     app_checks = []
     for item in checks[:24]:
