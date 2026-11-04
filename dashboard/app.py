@@ -178,7 +178,7 @@ def build_state():
                 saved = json.loads(last_check["payload"])
                 # Invalidate legacy cross-version tag comparisons and results
                 # based on a different installed application version.
-                valid = (saved.get("checker_rev") == 2 and
+                valid = (saved.get("checker_rev") == 3 and
                          (saved.get("current_software_version") or None) ==
                          (c["software_version"] or None))
                 if valid:
