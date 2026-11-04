@@ -32,7 +32,9 @@ services:
 
   version-watcher:
     build: .
-    image: codepug-console:preview
+    # Use a separate image tag to avoid two parallel BuildKit exporters
+    # writing the same image tag during docker compose up --build.
+    image: codepug-console-watcher:preview
     container_name: ${CODEPUG_WATCHER_NAME:-codepug-console-watcher}
     restart: unless-stopped
     init: true
