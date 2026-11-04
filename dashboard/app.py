@@ -271,7 +271,7 @@ def api_policy(form: PolicyIn, request: Request, _: Annotated[None, Depends(requ
 
 @app.post("/api/updates/check")
 def api_check_update(
-    form: "UpdateCheckIn", request: Request,
+    form: UpdateCheckIn, request: Request,
     _: Annotated[None, Depends(require_admin)]
 ):
     """Opt-in public Docker Hub lookup: no Docker, no shell, no update execution."""
