@@ -13,7 +13,7 @@ sudo git clone --branch feature/server-control-v0.7 --single-branch \
   https://github.com/Evert-67/MCP.git codepug-control-v07
 sudo chown -R "$USER:$USER" /opt/codepug-control-v07
 cd /opt/codepug-control-v07
-python3 scripts/setup_v06.py
+python3 scripts/setup.py
 ```
 
 De setup vraagt om een wachtwoordzin van minstens 12 tekens en slaat zelf de hash in `.env` op.
