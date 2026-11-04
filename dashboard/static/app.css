@@ -72,3 +72,45 @@
 
 /* v0.7: show immutable safety floor beside operator-chosen risk. */
 .policy-safety-note{display:block;margin-top:5px;font-size:10px;white-space:nowrap;color:var(--muted)}
+
+
+/* v0.7 — Evidence-based infrastructure dashboard */
+#health{scroll-margin-top:24px}
+.infrastructure-panel{margin-bottom:18px}
+.infrastructure-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.infrastructure-metric{padding:14px;border-radius:10px;background:var(--soft);border:1px solid var(--border);display:flex;flex-direction:column;gap:5px}
+.infrastructure-metric strong{font-size:25px;font-weight:750;color:var(--text)}
+.infrastructure-metric small{font-size:11px;line-height:1.35;color:var(--muted)}
+.health-host-list{display:grid;gap:12px;margin-top:15px}
+.health-host{border:1px solid var(--border);border-radius:11px;background:var(--panel);overflow:hidden}
+.health-host-summary{padding:14px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;list-style:none}
+.health-host-summary::-webkit-details-marker{display:none}
+.health-host-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.health-host-title strong{font-size:14px;overflow-wrap:anywhere}
+.health-host-title small{color:var(--muted);font-size:11px}
+.health-pill{font-size:10px;font-weight:600;padding:5px 9px;border-radius:20px;background:var(--soft);border:1px solid var(--border);white-space:nowrap}
+.health-pill.high{color:var(--red)}.health-pill.review{color:var(--yellow)}.health-pill.unknown{color:var(--muted)}
+.health-host-detail{padding:0 15px 15px;border-top:1px solid var(--border)}
+.health-facts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.health-fact-card{min-width:0;padding:14px;border:1px solid var(--border);border-radius:9px;background:var(--bg)}
+.health-fact-card h3,.health-probes h3,.health-findings h3{font-size:13px;font-weight:700;margin:0 0 12px;color:var(--text)}
+.health-fact{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--border);font-size:11px}
+.health-fact:first-of-type{border-top:none}
+.health-fact span{color:var(--muted)}
+.health-fact strong{color:var(--text);font-size:11px;text-align:right;overflow-wrap:anywhere}
+.health-caveat,.health-unknown{font-size:11px;line-height:1.55;color:var(--muted);margin:10px 0 0}
+.health-probes,.health-findings{margin-top:18px}
+.health-probe{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0;font-size:11px;border-bottom:1px solid var(--border)}
+.health-probe strong{overflow-wrap:anywhere}.health-probe span{color:var(--muted);text-align:right}
+.health-findings{display:grid;gap:9px}
+.health-findings h3{margin-bottom:0}
+.health-finding{padding:12px 13px;border-radius:8px;border:1px solid var(--border);background:var(--soft);border-left:3px solid var(--muted)}
+.health-finding.high{border-left-color:var(--red)}
+.health-finding.review{border-left-color:var(--yellow)}
+.health-finding-title{display:flex;gap:8px;justify-content:space-between;align-items:center}
+.health-finding-title strong{font-size:12px;color:var(--text);overflow-wrap:anywhere}
+.health-finding-title span{font-size:10px;color:var(--muted)}
+.health-finding p{font-size:11px;margin:8px 0;color:var(--text)}
+.health-finding small{font-size:11px;line-height:1.55;color:var(--muted)}
+@media(max-width:850px){.infrastructure-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.health-facts{grid-template-columns:1fr}}
+@media(max-width:540px){.health-host-summary{flex-direction:column;align-items:flex-start}.health-probe{flex-direction:column;align-items:flex-start}.health-probe span{text-align:left}}
