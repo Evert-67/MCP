@@ -16,11 +16,11 @@ Een prettige webinterface is belangrijk, maar veiligheid gaat vóór automatiser
 ## Deze eerste v0.7-mijlpaal bevat daadwerkelijk
 
 - Een extra pagina **Backup & Recovery** in het dashboard.
-- Een geauthenticeerd \`GET /api/recovery/overview\` endpoint dat hosts,
+- Een geauthenticeerd `GET /api/recovery/overview` endpoint dat hosts,
   aantallen diensten en kritieke diensten toont.
 - Statussen **Onbekend / Niet getest / Niet geverifieerd** voor alle back-ups,
   restore-tests en redundantie: een containersnapshot bevat daar geen bewijs voor.
-- Een \`GET /api/recovery/plan?service_key=...\` endpoint dat per geselecteerde
+- Een `GET /api/recovery/plan?service_key=...` endpoint dat per geselecteerde
   dienst een concept-checklist voor veilig herstel geeft.
 - Geen uitvoerende endpoints, Docker-socket, host SSH-sleutels, automatische
   herstelacties, back-upinventarisatie of dataverzending naar AI-providers.
@@ -84,6 +84,6 @@ De pagina mag nooit groen **'Beschermd'** tonen zonder bewijs.
 
 ## Ontwikkelinstallatie
 
-Zie \`QUICKSTART-V07-NL.md\`. Standaard is poort **8770** op localhost,
+Zie `QUICKSTART-V07-NL.md`. Standaard is poort **8770** op localhost,
 apart van v0.5 (8768) en v0.6 (8769). **Niet installeren in de bestaande
 mappen** en bestaande databases/back-ups nooit overschrijven.
