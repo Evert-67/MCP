@@ -7,11 +7,12 @@ the inventory and performs bounded public Docker Hub requests when enabled.
 from __future__ import annotations
 
 import logging
+import json
 import time
 from datetime import datetime, timedelta, timezone
 
 from .storage import all_update_checks, get_settings, init_db, save_update_check
-from .updates import check_public_docker_hub, reference
+from .updates import check_image_update
 
 log = logging.getLogger("codepug.watch_updates")
 POLL_SECONDS = 60
@@ -43,19 +44,27 @@ def due_images(services: list[dict], checks: dict, interval_hours: int,
         image = service.get("image")
         if not isinstance(key, str) or not isinstance(image, str):
             continue
+        installed = service.get("software_version") or ""
         stored = checks.get(key) or {}
         if stored.get("image_ref") == image:
             checked_at = parse_time(stored.get("checked_at"))
-            if checked_at and checked_at > threshold:
+            try:
+                payload = json.loads(stored.get("payload") or "{}")
+            except (ValueError, TypeError):
+                payload = {}
+            if (checked_at and checked_at > threshold and
+                    payload.get("checker_rev") == 2 and
+                    (payload.get("current_software_version") or "") == installed):
                 continue
-        if image in result:
-            result[image].append(service)
+        group_key = image + ("|" + installed if installed else "")
+        if group_key in result:
+            result[group_key].append(service)
         elif len(result) < limit:
-            result[image] = [service]
+            result[group_key] = [service]
     return result
 
 
-def run_cycle(*, get_state=None, checker=check_public_docker_hub,
+def run_cycle(*, get_state=None, checker=check_image_update,
               now: datetime | None = None) -> dict:
     """A bounded synchronous pass. No network requests until opted in."""
     settings = get_settings()
@@ -76,8 +85,10 @@ def run_cycle(*, get_state=None, checker=check_public_docker_hub,
                 if service.get("server_id") in online_hosts]
     due = due_images(eligible, checks, interval, now)
     checked = candidates = 0
-    for image, services in due.items():
-        result = checker(image)
+    for group_key, services in due.items():
+        image = services[0]["image"]
+        installed = services[0].get("software_version") or ""
+        result = checker(image, installed) if installed else checker(image)
         for service in services:
             save_update_check(service["key"], image, result)
             checked += 1
