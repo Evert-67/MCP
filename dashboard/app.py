@@ -16,10 +16,12 @@ from pydantic import BaseModel, Field
 
 from .diagnostics import build_diagnosis
 from .recovery import build_recovery_overview, build_recovery_plan
-from .risk import LEVELS, classify, effective_risk, permitted_mode
+from .risk import LEVELS, classify, chosen_risk, effective_risk, permitted_mode
+from .updates import check_public_docker_hub
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
                       new_agent, put_policy, recent_events, save_report,
-                      get_settings, put_settings, update_agent, delete_agent)
+                      get_settings, put_settings, update_agent, delete_agent,
+                      all_update_checks, save_update_check)
 
 ROOT = Path(__file__).resolve().parent
 HOST_SNAPSHOT = Path(os.getenv("HOST_SNAPSHOT", "/host-snapshot/status.json"))
@@ -63,6 +65,10 @@ class PolicyIn(BaseModel):
     risk_override: str | None = None
     mode: str = "monitor"
     notes: str = Field(default="", max_length=500)
+
+
+class UpdateCheckIn(BaseModel):
+    service_key: str = Field(min_length=3, max_length=240)
 
 
 class AgentIn(BaseModel):
@@ -121,6 +127,7 @@ def build_state():
     settings = get_settings()
     reports = all_reports()
     policies = all_policies()
+    update_checks = all_update_checks()
     servers, services = [], []
     # Local snapshot from the existing v0.4 MCP collector.
     if HOST_SNAPSHOT.is_file():
@@ -151,13 +158,28 @@ def build_state():
         key = f"{server_id}/{c['name']}"
         inherent = classify(c)
         setting = policies.get(key, {})
-        risk = effective_risk(inherent["minimum"], setting.get("risk_override"))
+        risk = chosen_risk(inherent["minimum"], setting.get("risk_override"))
+        safety_risk = effective_risk(inherent["minimum"], setting.get("risk_override"))
         mode = setting.get("mode", "monitor")
-        if not permitted_mode(mode, risk):
-            mode = "monitor"  # Always fail closed after risk increases.
+        if not permitted_mode(mode, safety_risk):
+            mode = "monitor"  # Manual lower priority never relaxes safety restrictions.
+        last_check = update_checks.get(key)
+        if last_check and last_check["image_ref"] == c["image"]:
+            try:
+                update = json.loads(last_check["payload"])
+                update = {
+                    "status": str(update.get("status", "unknown"))[:30],
+                    "candidate_tag": str(update.get("candidate_tag") or "")[:80],
+                    "checked_at": last_check["checked_at"],
+                }
+            except (ValueError, TypeError, AttributeError):
+                update = {"status": "not_checked"}
+        else:
+            update = {"status": "not_checked"}
         out.append({**c, "key":key, "server_id":server_id, "risk":risk,
+                    "safety_risk":safety_risk, "risk_override":setting.get("risk_override"),
                     "minimum_risk":inherent["minimum"],"risk_reasons":inherent["reasons"],
-                    "mode":mode,"notes":setting.get("notes", "")})
+                    "mode":mode,"notes":setting.get("notes", ""), "update":update})
     for s in servers:
         try:
             d = datetime.fromisoformat(str(s.get("collected_at", "")).replace("Z", "+00:00"))
@@ -238,11 +260,29 @@ def api_policy(form: PolicyIn, request: Request, _: Annotated[None, Depends(requ
         raise HTTPException(404, "Dienst niet gevonden")
     if form.risk_override not in (None, *LEVELS):
         raise HTTPException(422, "Ongeldig risiconiveau")
-    selected = effective_risk(item["minimum_risk"], form.risk_override)
-    if not permitted_mode(form.mode, selected):
-        raise HTTPException(422, "Automatisch bijwerken alleen voor laag risico; uitvoering bovendien uitgeschakeld")
-    put_policy(form.service_key, selected, form.mode, form.notes)
-    return {"saved":True, "effective_risk":selected, "execution_enabled":False}
+    selected = chosen_risk(item["minimum_risk"], form.risk_override)
+    safety = effective_risk(item["minimum_risk"], form.risk_override)
+    if not permitted_mode(form.mode, safety):
+        raise HTTPException(422, "Automatische modus niet toegestaan bij hogere veiligheidsrisico's")
+    put_policy(form.service_key, form.risk_override, form.mode, form.notes)
+    return {"saved":True, "risk":selected, "safety_risk":safety,
+            "execution_enabled":False}
+
+
+@app.post("/api/updates/check")
+def api_check_update(
+    form: "UpdateCheckIn", request: Request,
+    _: Annotated[None, Depends(require_admin)]
+):
+    """Opt-in public Docker Hub lookup: no Docker, no shell, no update execution."""
+    guard_mutation(request)
+    state = build_state()
+    service = next((s for s in state["services"] if s["key"] == form.service_key), None)
+    if service is None:
+        raise HTTPException(404, "Dienst niet gevonden")
+    result = check_public_docker_hub(service["image"])
+    save_update_check(form.service_key, service["image"], result)
+    return result
 
 
 @app.post("/api/agents")
