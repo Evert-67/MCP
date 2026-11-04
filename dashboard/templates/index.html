@@ -14,10 +14,11 @@
     <a class="nav-link-custom" href="#services"><i class="bi bi-boxes"></i> Diensten <span class="nav-count" id="nav-count">—</span></a>
     <a class="nav-link-custom" href="#servers"><i class="bi bi-hdd-stack"></i> Servers</a>
     <a class="nav-link-custom" href="#diagnose"><i class="bi bi-robot"></i> AI &amp; Diagnose</a>
+    <a class="nav-link-custom" href="#recovery"><i class="bi bi-database-check"></i> Backup &amp; Recovery</a>
     <a class="nav-link-custom" href="#risk"><i class="bi bi-shield-check"></i> Risicobeleid</a>
     <a class="nav-link-custom" href="#activity"><i class="bi bi-clock-history"></i> Activiteit</a>
     <a class="nav-link-custom" href="#settings"><i class="bi bi-sliders"></i> Instellingen</a>
-    <div class="sidebar-bottom"><div class="connection-dot"></div><div><strong>Dashboard actief</strong><small>v0.6-dev • Diagnosemodus veilig</small></div></div>
+    <div class="sidebar-bottom"><div class="connection-dot"></div><div><strong>Dashboard actief</strong><small>v0.7-dev • Herstelmodus veilig</small></div></div>
   </aside>
   <main class="main" id="overview">
     <header class="topbar"><button class="btn d-md-none menu-btn" id="menu"><i class="bi bi-list"></i></button><div class="crumb">Infrastructuur <i class="bi bi-chevron-right"></i> <span>Overzicht</span></div><div class="top-actions"><label for="language" class="visually-hidden">Language / Taal</label><select id="language" class="filter-select" title="Language / Taal" aria-label="Language / Taal"><option value="nl">Nederlands</option><option value="en">English</option></select><span class="top-secure"><i class="bi bi-lock-fill"></i> Beveiligde sessie</span><button class="icon-btn" id="refresh" title="Vernieuwen"><i class="bi bi-arrow-clockwise"></i></button><div class="avatar">CP</div></div></header>
@@ -56,6 +57,29 @@
           </div>
         </div>
       </section>
+      <div class="section-head" id="recovery">
+        <div><h2>Backup &amp; Recovery</h2><p>Bekijk herstelgereedheid per host en maak een veilig herstelplan</p></div>
+        <span class="small-muted"><i class="bi bi-shield-lock"></i> Alleen lezen · herstel geblokkeerd</span>
+      </div>
+      <div class="recovery-metrics">
+        <article class="metric"><div class="metric-title">Gekoppelde hosts <i class="bi bi-hdd-network"></i></div><div class="metric-number" id="recovery-host-count">—</div><div class="metric-footer">Inventaris beschikbaar</div></article>
+        <article class="metric"><div class="metric-title">Bevestigde back-ups <i class="bi bi-database-lock"></i></div><div class="recovery-metric-text" id="recovery-backup-count">Onbekend</div><div class="metric-footer">Geen back-upintegratie actief</div></article>
+        <article class="metric"><div class="metric-title">Geslaagde hersteltests <i class="bi bi-arrow-counterclockwise"></i></div><div class="recovery-metric-text" id="recovery-restore-count">Niet getest</div><div class="metric-footer">Geen restore-validatie actief</div></article>
+      </div>
+      <div class="panel-note recovery-banner"><i class="bi bi-exclamation-triangle"></i> <span id="recovery-warning">Back-upstatus nog niet gecontroleerd.</span></div>
+      <div class="two-col recovery-grid">
+        <section class="panel side-panel">
+          <div class="panel-title"><div><h2>Herstelbaarheid per host</h2><p>Geen groen vinkje zonder bewijs</p></div><i class="bi bi-hdd-stack section-icon"></i></div>
+          <div id="recovery-host-list"><p class="helper">Hostgegevens laden...</p></div>
+        </section>
+        <section class="panel side-panel">
+          <div class="panel-title"><div><h2>Herstelplan voorbereiden</h2><p>Stappenplan zonder wijzigingen aan de server</p></div><i class="bi bi-clipboard-check section-icon"></i></div>
+          <div class="form-row"><label for="recovery-service">Kies een dienst</label><select class="form-field" id="recovery-service" disabled><option>Services laden...</option></select></div>
+          <button type="button" class="primary-btn" id="recovery-plan-button" disabled><i class="bi bi-list-check"></i> Toon herstelplan</button>
+          <div id="recovery-plan-output" class="recovery-plan-output"><p class="helper">Selecteer een dienst om te zien welke controles nodig zijn vóór een herstelactie.</p></div>
+          <div class="panel-note"><i class="bi bi-lock"></i> Geen automatische back-up, herstart, rollback of failover. Deze functie voert uitsluitend controles op de inventaris uit.</div>
+        </section>
+      </div>
       <div class="two-col"><section class="panel side-panel" id="risk"><div class="panel-title"><div><h2>Risicolagen</h2><p>Een beleid dat rekening houdt met impact</p></div><i class="bi bi-shield-check section-icon"></i></div><div class="risk-item"><span class="risk-dot low"></span><div><strong>Laag risico</strong><small>Controleer, back-up en beperkte auto-updates na vrijgave</small></div><span class="risk-code">L1</span></div><div class="risk-item"><span class="risk-dot medium"></span><div><strong>Middel</strong><small>Update pas na beoordeling en goedkeuring</small></div><span class="risk-code">L2</span></div><div class="risk-item"><span class="risk-dot high"></span><div><strong>Hoog</strong><small>Kritieke functies, extra back-up en handmatige uitvoering</small></div><span class="risk-code">L3</span></div><div class="risk-item"><span class="risk-dot critical"></span><div><strong>Kritiek</strong><small>Databases en kerninfrastructuur: niet automatisch</small></div><span class="risk-code">L4</span></div><div class="panel-note"><i class="bi bi-info-circle"></i> Het automatische minimumrisico kun je verhogen, maar niet verlagen.</div></section><section class="panel side-panel" id="activity"><div class="panel-title"><div><h2>Activiteitenlog</h2><p>Laatste configuratiewijzigingen</p></div><i class="bi bi-clock-history section-icon"></i></div><div id="events" class="events"><div class="loading">Activiteit laden...</div></div></section></div>
 
       <div class="section-head" id="settings"><div><h2>Instellingen</h2><p>Beheer de webinterface en aangesloten servers op één plek</p></div><span class="small-muted"><i class="bi bi-shield-lock"></i> Updates blijven geblokkeerd</span></div>
@@ -86,7 +110,7 @@
           <div class="panel-note"><i class="bi bi-info-circle"></i> Het scaninterval wordt automatisch toegepast bij agents die met <code>scan.py --loop</code> draaien. Bestaande cronjobs blijven hun eigen schema volgen.</div>
         </section>
       </div>
-      <footer>CodePug Server Control <span>v0.6.0-dev</span> · Every server needs a good boi. 🐶</footer>
+      <footer>CodePug Server Control <span>v0.7.0-dev</span> · Every server needs a good boi. 🐶</footer>
     </div>
   </main>
 </div>
@@ -94,5 +118,6 @@
 <div id="toast" class="toast-custom" hidden></div>
 <script src="/static/i18n.js"></script>
 <script src="/static/diagnose.js"></script>
+<script src="/static/recovery.js"></script>
 <script src="/static/app.js"></script>
 </body></html>
