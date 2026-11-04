@@ -8,6 +8,7 @@ No environment variables, labels values, secret files or container logs are sent
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -32,7 +33,13 @@ def scan():
         state_name = state.get("Status", "unknown")
         labels = d.get("Config", {}).get("Labels") or {}
         mounts = d.get("Mounts") or []
+        # Read only OCI image-version metadata already exposed by docker inspect.
+        # Never forward arbitrary labels or environment variables.
+        software_version = str(labels.get("org.opencontainers.image.version") or "")[:40]
+        if not re.fullmatch(r"v?\d{1,3}\.\d{1,3}(?:\.\d{1,4})?", software_version):
+            software_version = ""
         records.append({
+            "software_version": software_version,
             "name": str(d.get("Name", "")).lstrip("/"),
             "image": d.get("Config", {}).get("Image", ""),
             "status": f"{state_name}{' (unhealthy)' if health == 'unhealthy' else ''}",
