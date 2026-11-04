@@ -110,6 +110,24 @@ class WebTests(unittest.TestCase):
             self.assertEqual(checked.json()["candidate_tag"],"7.4.2")
             self.assertFalse(checked.json()["execution_enabled"])
 
+    def test_infrastructure_health_requires_auth_and_preserves_uncertainty(self):
+        from unittest.mock import patch
+        state={
+            "servers":[{"id":"local","label":"Ubuntu host","online":True}],
+            "services":[{"key":"local/demo","name":"demo","server_id":"local",
+                         "status":"Up","state":"running","update":{"status":"not_checked"}}]
+        }
+        with TestClient(app) as client, patch("dashboard.app.build_state",return_value=state):
+            self.assertEqual(client.get("/api/health/overview").status_code,401)
+            result=client.get("/api/health/overview",
+                              auth=("admin","test-password-not-for-use"))
+            self.assertEqual(result.status_code,200,result.text)
+            data=result.json()
+            self.assertTrue(data["read_only"])
+            self.assertFalse(data["execution_enabled"])
+            self.assertEqual(data["summary"]["hosts_with_deep_evidence"],0)
+            self.assertFalse(data["hosts"][0]["fully_verified"])
+
     def test_agent_flow(self):
         with TestClient(app) as client:
             auth=('admin','test-password-not-for-use')
