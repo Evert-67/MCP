@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
@@ -17,7 +18,7 @@ from pydantic import BaseModel, Field
 from .diagnostics import build_diagnosis
 from .recovery import build_recovery_overview, build_recovery_plan
 from .risk import LEVELS, classify, chosen_risk, effective_risk, permitted_mode
-from .updates import check_public_docker_hub
+from .updates import check_image_update
 from .storage import (init_db, all_agents, all_policies, all_reports, agent_info,
                       new_agent, put_policy, recent_events, save_report,
                       get_settings, put_settings, update_agent, delete_agent,
@@ -99,7 +100,13 @@ def clean_containers(raw):
         name = str(item.get("name") or item.get("Names") or "")[:120]
         if not name:
             continue
+        reported_version = item.get("software_version") or ""
+        # Only accept a constrained version, never arbitrary image labels/notes.
+        reported_version = str(reported_version)[:40]
+        if not re.fullmatch(r"v?\d{1,3}\.\d{1,3}(?:\.\d{1,4})?", reported_version):
+            reported_version = ""
         result.append({
+            "software_version": reported_version,
             "name": name,
             "image": str(item.get("image") or item.get("Image") or "")[:240],
             "status": str(item.get("status") or item.get("Status") or "")[:140],
@@ -168,12 +175,24 @@ def build_state():
         last_check = update_checks.get(key)
         if last_check and last_check["image_ref"] == c["image"]:
             try:
-                update = json.loads(last_check["payload"])
-                update = {
-                    "status": str(update.get("status", "unknown"))[:30],
-                    "candidate_tag": str(update.get("candidate_tag") or "")[:80],
-                    "checked_at": last_check["checked_at"],
-                }
+                saved = json.loads(last_check["payload"])
+                # Invalidate legacy cross-version tag comparisons and results
+                # based on a different installed application version.
+                valid = (saved.get("checker_rev") == 2 and
+                         saved.get("current_software_version") in
+                         (None, c["software_version"] or None))
+                if valid:
+                    update = {
+                        "status": str(saved.get("status", "unknown"))[:30],
+                        "candidate_tag": str(saved.get("candidate_tag") or "")[:80],
+                        "latest_release": str(saved.get("latest_release") or "")[:80],
+                        "current_software_version": c["software_version"],
+                        "note": str(saved.get("note") or "")[:500],
+                        "source": str(saved.get("source") or "")[:60],
+                        "checked_at": last_check["checked_at"],
+                    }
+                else:
+                    update = {"status": "not_checked"}
             except (ValueError, TypeError, AttributeError):
                 update = {"status": "not_checked"}
         else:
@@ -282,7 +301,7 @@ def api_check_update(
     service = next((s for s in state["services"] if s["key"] == form.service_key), None)
     if service is None:
         raise HTTPException(404, "Dienst niet gevonden")
-    result = check_public_docker_hub(service["image"])
+    result = check_image_update(service["image"], service.get("software_version") or None)
     save_update_check(form.service_key, service["image"], result)
     return result
 
