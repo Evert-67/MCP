@@ -92,6 +92,40 @@ De incidentengroepering is *heuristisch*. Zij toont mogelijke
 gedeelde symptomen, geen bewezen netwerkstoring. Specifieke
 Sonarr/Radarr/Indexers-integraties zijn er nog niet.
 
+## Als poort 8771 niet reageert
+
+Controleer eerst **of de preview daadwerkelijk is gestart**:
+
+```bash
+cd /opt/codepug-control-console
+git pull --ff-only
+docker compose config --quiet
+docker compose up -d --build
+docker compose ps
+curl -I http://127.0.0.1:8771/healthz
+```
+
+De `/healthz`-endpoint antwoordt op een werkende preview met status 200.
+De dashboard-login en applicatiecontrole zijn daarna apart te testen.
+De portforward vanuit Windows moet ondertussen openstaan:
+
+```powershell
+ssh -L 8771:127.0.0.1:8771 evert@192.168.2.20
+```
+
+`docker compose up --build` bouwt twee images. Ze hebben nu
+**afzonderlijke image-tags** om gelijktijdige BuildKit-exportconflicten
+te vermijden. Als bouwen nog steeds mislukt, gebruik:
+
+```bash
+docker compose --progress plain build
+```
+
+En bekijk de **volledige foutregels onderaan**, niet alleen de eerste
+`ERROR exporting to image`-regel. Een opslag-, permissie- of BuildKit-fout
+kan dezelfde bovenste melding geven. Wis geen Docker-volumes, images of
+andere containers van de host als algemene herstelmaatregel.
+
 ## Veilig stoppen
 
 ```bash
