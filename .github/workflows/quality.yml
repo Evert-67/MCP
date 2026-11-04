@@ -26,5 +26,10 @@ jobs:
           node --check dashboard/static/app.js
           node --check dashboard/static/diagnose.js
           node --check dashboard/static/recovery.js
+      - name: Check Docker Compose configuration
+        run: |
+          cp .env.example .env
+          mkdir -p host-data appdata
+          docker compose -f docker-compose.yml config --quiet
       - name: Unit tests
         run: python -m unittest discover -s tests -v
