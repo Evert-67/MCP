@@ -27,6 +27,38 @@ Een prettige webinterface is belangrijk, maar veiligheid gaat vóór automatiser
 - Unit- en API-tests voor autorisatie, waarheidsgetrouwe statussen en
   het niet uitlekken van beleidsnotities/tokens.
 
+## v0.7 extra — risicoprioriteit en handmatige versiecontrole
+
+In **Diensten > Risicobeleid** kun je nu een eigen risicobeoordeling kiezen,
+ook **Laag** wanneer CodePug een belangrijkere dienst herkent. Het dashboard
+bewaart tegelijk een **onafhankelijke veiligheidsinschatting**. Een lagere
+risicoscore verlaagt nooit de veiligheidsdrempel voor automatische acties.
+Deze ontwikkelversie kan sowieso geen updates uitvoeren.
+
+Per dienst vind je **Controleer nieuwere versie**. Dit is een *handmatige*
+best-effort tagvergelijking tegen de **publieke Docker Hub API**:
+
+- Alleen Docker Hub-images met een expliciet **numeriek image-tag**
+  (bijvoorbeeld `redis:7.2.4`), geen `:latest`, digest-pins,
+  GHCR, privéregisties of interne repositories.
+- Vergelijkt maximaal **200 tags** van dezelfde repository en imagevariant.
+  De uitkomst **Nieuwe tag gevonden** betekent alleen dat het nummer
+  nieuwer is, niet dat deze software of image veilig geïnstalleerd kan worden.
+- Verschillende architecturen, OS-varianten, API-/databasecompatibiliteit
+  en breaking changes worden **niet** gevalideerd; controleer release notes,
+  back-ups en herstelbaarheid vóór een echte update.
+- Zonder expliciete knopdruk is er geen netwerkvraag aan Docker Hub.
+  De gecontroleerde repositorynaam wordt wel naar Docker Hub verstuurd
+  zodra je op de knop drukt.
+- Het dashboard bewaart de laatste checkstatus, niet de beslissing om te
+  updaten. Geen pull, restart, build, deployment of AI-mutatie.
+- **Niet gecontroleerd** en **Niet ondersteund** blijven expliciet zichtbaar.
+  Als de taglijst niet volledig kon worden doorzocht wordt dat vermeld.
+
+Toekomstig: adapters voor **GHCR**, private registries,
+same-tag digest updates en architectuur-/compatibiliteitscontrole. Een
+nieuwe beschikbare versie is nooit automatisch een verplichte update.
+
 ## Roadmap voor v0.7
 
 ### R1 — Back-upinventaris via adapters
