@@ -289,6 +289,27 @@ def home(_: Annotated[None, Depends(require_admin)]):
     return FileResponse(ROOT / "templates" / "index.html")
 
 
+CONSOLE_PAGES = frozenset({
+    "overview", "servers", "incidents", "updates",
+    "recovery", "assistant", "settings"
+})
+
+
+@app.get("/console")
+def console_home(_: Annotated[None, Depends(require_admin)]):
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse("/console/overview", status_code=307)
+
+
+@app.get("/console/{page}")
+def console_page(page: str, _: Annotated[None, Depends(require_admin)]):
+    """Modular read-only console; page names are explicitly allowlisted."""
+    if page not in CONSOLE_PAGES:
+        raise HTTPException(404, "Pagina niet gevonden")
+    return FileResponse(ROOT / "templates" / "console.html",
+                        headers={"Cache-Control": "no-store"})
+
+
 @app.get("/api/state")
 def api_state(_: Annotated[None, Depends(require_admin)]):
     return build_state()
