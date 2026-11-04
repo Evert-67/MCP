@@ -179,8 +179,8 @@ def build_state():
                 # Invalidate legacy cross-version tag comparisons and results
                 # based on a different installed application version.
                 valid = (saved.get("checker_rev") == 2 and
-                         saved.get("current_software_version") in
-                         (None, c["software_version"] or None))
+                         (saved.get("current_software_version") or None) ==
+                         (c["software_version"] or None))
                 if valid:
                     update = {
                         "status": str(saved.get("status", "unknown"))[:30],
