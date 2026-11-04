@@ -49,10 +49,10 @@ class WatcherTests(unittest.TestCase):
         checks={
             "local/redis":{"image_ref":"redis:7.2.4",
                            "checked_at":(self.now-timedelta(hours=10)).isoformat(),
-                           "payload":json.dumps({"checker_rev":2,"current_software_version":None})},
+                           "payload":json.dumps({"checker_rev":3,"current_software_version":None})},
             "local/redis-2":{"image_ref":"redis:7.2.4",
                              "checked_at":(self.now-timedelta(hours=10)).isoformat(),
-                           "payload":json.dumps({"checker_rev":2,"current_software_version":None})}
+                           "payload":json.dumps({"checker_rev":3,"current_software_version":None})}
         }
         with patch("dashboard.watch_updates.get_settings",return_value={
                 "auto_version_checks":True,"version_check_interval_hours":24}), \
