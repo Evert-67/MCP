@@ -64,6 +64,31 @@ def apt_updates() -> dict:
             "security_count": min(security, 100_000)}
 
 
+def docker_package_candidates() -> dict:
+    """Installed vs candidate in existing APT cache; no remote refresh."""
+    names = ("docker-ce", "docker-ce-cli", "docker-compose-plugin",
+             "docker.io", "containerd.io")
+    ok, data = command("apt-cache", "policy", *names, timeout=5)
+    if not ok:
+        return {"status": "unavailable", "packages_checked": 0,
+                "pending_packages": [], "pending": None}
+    installed = 0
+    pending = []
+    for match in re.finditer(
+        r"(?m)^([a-z0-9.-]+):\s*\n\s+Installed:\s+(\S+)\s*\n\s+Candidate:\s+(\S+)",
+        data
+    ):
+        name, installed_version, candidate = match.groups()
+        if name not in names or installed_version == "(none)":
+            continue
+        installed += 1
+        if candidate != "(none)" and candidate != installed_version:
+            pending.append(name)
+    return {"status": "cached" if installed else "unavailable",
+            "packages_checked": installed, "pending_packages": pending[:5],
+            "pending": bool(pending) if installed else None}
+
+
 def _version(command_args: tuple[str, ...]) -> str | None:
     ok, output = command(*command_args, timeout=4)
     candidate = output.splitlines()[0].strip()[:64] if ok and output else ""
@@ -86,6 +111,7 @@ def host_health() -> dict:
         False if docker_status in {"inactive", "failed"} else None
     )
     packages = apt_updates()
+    docker_packages = docker_package_candidates()
     return {
         "linux": {
             "scan_status": "read_only",
@@ -106,6 +132,9 @@ def host_health() -> dict:
             "client_version": _version(("docker", "version", "--format", "{{.Client.Version}}")),
             "compose_version": _version(("docker", "compose", "version", "--short")),
             "engine_latest_verified": False,
+            "package_cache_status": docker_packages["status"],
+            "apt_package_update_available": docker_packages["pending"],
+            "apt_pending_packages": docker_packages["pending_packages"],
         },
         "app_checks": [],
     }
