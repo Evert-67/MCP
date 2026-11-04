@@ -85,6 +85,8 @@ class DashboardSettingsIn(BaseModel):
     offline_after_seconds: int = Field(ge=120, le=7200)
     alerts_enabled: bool
     notify_unhealthy: bool
+    auto_version_checks: bool = False
+    version_check_interval_hours: int = Field(default=24, ge=6, le=168)
 
 
 def clean_containers(raw):
