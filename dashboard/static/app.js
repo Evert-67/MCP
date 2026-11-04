@@ -8,6 +8,19 @@ function popup(title,html){$('modal-title').textContent=title;$('modal-content')
 function close(){ $('overlay').hidden=true }
 function toast(text){let t=$('toast');t.textContent=text;t.hidden=false;setTimeout(()=>t.hidden=true,4500)}
 async function request(url,options={}){const r=await fetch(url,{credentials:'same-origin',...options});const p=await r.json().catch(()=>({}));if(!r.ok)throw Error(p.detail||`HTTP ${r.status}`);return p}
+const versionLabel=c=>{
+  const u=c.update||{};
+  if(u.status==='candidate')return 'Nieuwe tag: '+(u.candidate_tag||'?');
+  if(u.status==='no_newer_found')return 'Geen nieuwere tag gevonden';
+  if(u.status==='incomplete')return 'Controle onvolledig';
+  if(u.status==='unsupported')return 'Niet ondersteund';
+  if(u.status==='check_failed')return 'Controle mislukt';
+  return 'Niet gecontroleerd';
+};
+const versionSummary=c=>{
+  const u=c.update||{};
+  return versionLabel(c)+(u.checked_at?' · '+u.checked_at.slice(0,16).replace('T',' '):'');
+};
 const running=c=>c.state==='running'||/^up\b/i.test(c.status);
 function render(){const s=model.services||[], hosts=model.servers||[];
 $('m-servers').textContent=hosts.length;$('m-online').textContent=t('{count} online',{count:hosts.filter(x=>x.online).length});$('m-containers').textContent=s.length;$('nav-count').textContent=s.length;
@@ -18,11 +31,70 @@ const old=$('filter-server').value;$('filter-server').innerHTML='<option value="
 $('events').innerHTML=model.events?.length?model.events.map(e=>`<div class="event"><div class="event-icon"><i class="bi bi-pencil-square"></i></div><div><strong>${esc(e.kind)}</strong><small>${esc(e.subject)} · ${esc(e.detail)}</small></div><time>${esc(e.time?.slice(11,16))}</time></div>`).join(''):'<div class="loading">Nog geen wijzigingen geregistreerd</div>';
 renderRows();renderSettings();i18n.translate();}
 function renderRows(){let filtered=(model.services||[]).filter(x=>(!$('filter-server').value||x.server_id===$('filter-server').value)&&(!$('filter-status').value||($('filter-status').value==='running'?running(x):!running(x)))&&(!$('filter-risk').value||x.risk===$('filter-risk').value)&&[x.name,x.image,x.project].join(' ').toLowerCase().includes($('search').value.toLowerCase()));
-$('results-count').textContent=t('{count} resultaten',{count:filtered.length});$('service-rows').innerHTML=filtered.length?filtered.map(c=>`<tr data-key="${esc(c.key)}"><td><div class="service-name">${esc(c.name)}</div><div class="service-image">${esc(c.image)}</div></td><td>${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}</td><td><span class="pill ${running(c)?'running':'stopped'}"><span class="risk-mark"></span>${running(c)?t('Actief'):t('Gestopt')}${/unhealthy/i.test(c.status)?' · ongezond':''}</span></td><td><span class="pill ${c.risk}"><span class="risk-mark"></span>${labels[c.risk]}</span></td><td><span class="policy-text">${labels[c.mode]}</span></td><td><button class="edit-btn" title="Beleid bewerken"><i class="bi bi-sliders2"></i></button></td></tr>`).join(''):'<tr><td colspan="6" class="loading">Geen diensten gevonden voor deze filters</td></tr>';
+$('results-count').textContent=t('{count} resultaten',{count:filtered.length});$('service-rows').innerHTML=filtered.length?filtered.map(c=>`<tr data-key="${esc(c.key)}"><td><div class="service-name">${esc(c.name)}</div><div class="service-image">${esc(c.image)}</div></td><td>${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}</td><td><span class="pill ${running(c)?'running':'stopped'}"><span class="risk-mark"></span>${running(c)?t('Actief'):t('Gestopt')}${/unhealthy/i.test(c.status)?' · ongezond':''}</span></td><td><span class="pill ${c.risk}"><span class="risk-mark"></span>${labels[c.risk]}</span></td><td><span class="policy-text">${esc(versionLabel(c))}</span></td><td><span class="policy-text">${labels[c.mode]}</span></td><td><button class="edit-btn" title="Beleid bewerken"><i class="bi bi-sliders2"></i></button></td></tr>`).join(''):'<tr><td colspan="7" class="loading">Geen diensten gevonden voor deze filters</td></tr>';
 $('service-rows').querySelectorAll('tr[data-key]').forEach(tr=>tr.addEventListener('click',()=>editService(tr.dataset.key)))}
-function editService(key){const c=model.services.find(x=>x.key===key);if(!c)return;let reasons=c.risk_reasons?.length?c.risk_reasons.map(x=>`<div>• ${esc(t(x))}</div>`).join(''):'<div>Geen aanvullende risico-indicatoren</div>';
-popup(t('Risicobeleid ·')+' '+c.name,`<div class="helper">Host: ${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}<br>Minimaal risico: <strong>${labels[c.minimum_risk]}</strong></div><div class="reasons">${reasons}</div><form id="policy-form"><div class="form-row"><label>Risicolaag (nooit lager dan het minimum)</label><select class="form-field" id="risk-value">${['low','medium','high','critical'].map(r=>`<option value="${r}" ${r===c.risk?'selected':''} ${['low','medium','high','critical'].indexOf(r)<['low','medium','high','critical'].indexOf(c.minimum_risk)?'disabled':''}>${labels[r]}</option>`).join('')}</select></div><div class="form-row"><label>Updatebeleid</label><select class="form-field" id="policy-mode"><option value="monitor" ${c.mode==='monitor'?'selected':''}>Alleen volgen</option><option value="approve" ${c.mode==='approve'?'selected':''}>Na goedkeuring</option><option value="auto" ${c.mode==='auto'?'selected':''}>Automatisch (uitsluitend laag risico, uitvoering nog uit)</option></select></div><div class="form-row"><label>Notities</label><textarea class="form-area" id="policy-notes" maxlength="500">${esc(c.notes)}</textarea></div><div class="panel-note"><i class="bi bi-shield-lock"></i> Ook bij 'Automatisch' voert v0.5 geen updates uit. Back-up, healthcheck en uitvoeringsagent moeten eerst worden gevalideerd.</div><div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button class="primary-btn" type="submit">Beleid opslaan</button></div></form>`);
-$('cancel').onclick=close;$('policy-form').onsubmit=async e=>{e.preventDefault();try{await request('/api/policies',{method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},body:JSON.stringify({service_key:key,risk_override:$('risk-value').value,mode:$('policy-mode').value,notes:$('policy-notes').value})});close();toast('Risicobeleid opgeslagen');await reload()}catch(err){toast('Niet opgeslagen: '+err.message)}}}
+function editService(key){
+ const c=model.services.find(x=>x.key===key);if(!c)return;
+ const reasons=c.risk_reasons?.length?c.risk_reasons.map(x=>`<div>• ${esc(t(x))}</div>`).join(''):'<div>Geen aanvullende risico-indicatoren</div>';
+ const userRisk=c.risk_override||'';
+ const automaticDisabled=c.minimum_risk!=='low'?'disabled':'';
+ popup(t('Risicobeleid ·')+' '+c.name,`<div class="helper">Host: ${esc(model.servers.find(x=>x.id===c.server_id)?.label||c.server_id)}<br>Automatische veiligheidsinschatting: <strong>${labels[c.minimum_risk]}</strong> (blijft gelden voor uitvoeringsrechten)</div>
+ <div class="reasons">${reasons}</div>
+ <form id="policy-form">
+  <div class="form-row"><label>Mijn risicobeoordeling</label><select class="form-field" id="risk-value">
+   <option value="" ${!userRisk?'selected':''}>Automatische inschatting volgen</option>
+   ${['low','medium','high','critical'].map(r=>`<option value="${r}" ${userRisk===r?'selected':''}>${labels[r]}</option>`).join('')}
+  </select><div class="helper">Je kunt Laag kiezen. De veiligheidsinschatting blijft onafhankelijk bestaan; zo wordt nooit automatisch een gevaarlijke update toegestaan.</div></div>
+  <div class="form-row"><label>Versiecontrole</label><div class="helper">Gebruikte image: <strong>${esc(c.image)}</strong></div>
+   <div class="helper" id="version-status">${esc(versionSummary(c))}</div>
+   <button type="button" class="secondary-btn" id="version-check"><i class="bi bi-arrow-repeat"></i> Controleer nieuwere versie</button>
+   <div class="helper">Alleen publieke Docker Hub-images met een genummerde tag. Na klikken zoeken we maximaal 200 tags; er wordt niets bijgewerkt.</div>
+  </div>
+  <div class="form-row"><label>Updatebeleid</label><select class="form-field" id="policy-mode">
+   <option value="monitor" ${c.mode==='monitor'?'selected':''}>Alleen volgen</option>
+   <option value="approve" ${c.mode==='approve'?'selected':''}>Na goedkeuring</option>
+   <option value="auto" ${c.mode==='auto'?'selected':''} ${automaticDisabled}>Automatisch (gepland; alleen veilig laag risico)</option>
+  </select></div>
+  <div class="form-row"><label>Notities</label><textarea class="form-area" id="policy-notes" maxlength="500">${esc(c.notes)}</textarea></div>
+  <div class="panel-note"><i class="bi bi-shield-lock"></i> Risico is niet hetzelfde als updatetoestemming. v0.7 voert geen updates uit: eerst back-up, compatibiliteit, healthcheck en expliciete goedkeuring.</div>
+  <div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button class="primary-btn" type="submit">Beleid opslaan</button></div>
+ </form>`);
+ $('cancel').onclick=close;
+ $('version-check').onclick=async ()=>{
+   const button=$('version-check');button.disabled=true;
+   const status=$('version-status');
+   status.textContent='Publieke Docker Hub-tags controleren...';
+   try{
+     const r=await request('/api/updates/check',{
+       method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},
+       body:JSON.stringify({service_key:key})
+     });
+     const label=r.status==='candidate'?
+       'Nieuwere tag gevonden: '+r.candidate_tag:
+       r.status==='no_newer_found'?'Geen nieuwere tag gevonden':
+       r.status==='incomplete'?'Controle onvolledig':
+       r.status==='unsupported'?'Niet ondersteund':'Controle mislukt';
+     status.textContent=label+' — '+r.note;
+     const svc=model.services.find(s=>s.key===key);
+     if(svc) svc.update={status:r.status,candidate_tag:r.candidate_tag||'',checked_at:new Date().toISOString()};
+     renderRows();
+   }catch(err){status.textContent='Versiecontrole mislukt: '+err.message}
+   finally{button.disabled=false}
+ };
+ $('policy-form').onsubmit=async e=>{
+   e.preventDefault();
+   try{
+     await request('/api/policies',{
+       method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},
+       body:JSON.stringify({
+         service_key:key,risk_override:$('risk-value').value||null,
+         mode:$('policy-mode').value,notes:$('policy-notes').value
+       })
+     });
+     close();toast('Risicobeleid opgeslagen');await reload();
+   }catch(err){toast('Niet opgeslagen: '+err.message)}
+ };
+}
 function addServer(){popup('Nieuwe server koppelen',`<p class="helper">Maak een agent aan voor je Synology of een andere Linux-server. Je ontvangt een eenmalig token. De agent verstuurt statusgegevens; er is geen inkomende Docker-API nodig.</p><form id="agent-form"><div class="form-row"><label>Herkenbare servernaam</label><input class="form-field" id="agent-name" placeholder="Bijvoorbeeld: Synology NAS" required minlength="2" maxlength="80"></div><div class="modal-buttons"><button type="button" class="secondary-btn" id="cancel">Annuleren</button><button type="submit" class="primary-btn">Agent aanmaken</button></div></form>`);$('cancel').onclick=close;$('agent-form').onsubmit=async e=>{e.preventDefault();try{const d=await request('/api/agents',{method:'POST',headers:{'content-type':'application/json','x-codepug-request':'1'},body:JSON.stringify({label:$('agent-name').value})});popup('Agent aangemaakt',`<p class="helper">Bewaar dit token veilig: het wordt na het sluiten niet opnieuw getoond. Installeer op de andere server <code>agent/scan.py</code> volgens de README.</p><div class="form-row"><label>Agent-ID</label><div class="token-area">${esc(d.id)}</div></div><div class="form-row"><label>Eenmalig toegangstoken</label><div class="token-area">${esc(d.token)}</div></div><div class="panel-note">De agent gebruikt <code>CODEPUG_HUB_URL</code>, <code>CODEPUG_AGENT_ID</code> en een tokenbestand op de server. Gebruik HTTPS/Tailscale.</div><div class="modal-buttons"><button class="secondary-btn" id="close-created">Sluiten</button></div>`);$('close-created').onclick=()=>{close();reload()}}catch(err){toast(err.message)}}}
 async function reload(){
 try{
