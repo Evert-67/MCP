@@ -149,6 +149,8 @@ function renderSettings(){
     $('settings-offline').value=String(s.offline_after_seconds??300);
     $('settings-alerts').checked=s.alerts_enabled!==false;
     $('settings-unhealthy').checked=s.notify_unhealthy!==false;
+    $('settings-auto-version').checked=s.auto_version_checks===true;
+    $('settings-version-interval').value=String(s.version_check_interval_hours??24);
   }
   $('settings-language').value=i18n.language;
   const a=model.agents||[];
@@ -215,7 +217,9 @@ $('settings-form').onsubmit=async event=>{
         refresh_seconds:Number($('settings-refresh').value),
         offline_after_seconds:Number($('settings-offline').value),
         alerts_enabled:$('settings-alerts').checked,
-        notify_unhealthy:$('settings-unhealthy').checked
+        notify_unhealthy:$('settings-unhealthy').checked,
+        auto_version_checks:$('settings-auto-version').checked,
+        version_check_interval_hours:Number($('settings-version-interval').value)
       })
     });
     toast(t('Instellingen opgeslagen'));await reload();
