@@ -59,6 +59,10 @@ en de gekozen wachtwoordzin.
 7. Ga naar **Instellingen** en schakel **Zoek op de achtergrond naar nieuwe Docker Hub-tags** bewust in. Kies bijvoorbeeld **Elke 24 uur** en klik **Instellingen opslaan**.
 8. Open het overzicht: de tegel **Nieuwe versies gevonden** en de kolom **Versiecontrole** worden vanzelf bijgewerkt wanneer de eerste scans klaar zijn.
 9. Per dienst blijft **Controleer nieuwere versie** beschikbaar voor een directe handmatige controle.
+10. Bij **Homarr** toont CodePug nu een officiële release uit GitHub. Wanneer
+    de draaiende versie niet vanuit een hostagent bekend is, staat er
+    **Huidige versie onbekend**. Dat is nog géén bevestigde beschikbare update.
+    De bestaande v0.4-snapshot levert geen applicatieversie of image-digest.
 
 ## Stoppen van uitsluitend v0.7
 
